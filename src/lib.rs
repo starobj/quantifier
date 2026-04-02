@@ -29,11 +29,34 @@ OneOrMore:
  */
 #[derive(Clone, Debug, PartialEq)]
 pub enum Quantifier {
-    None,
-    Optional,
+    /**
+    Match the pattern exactly.
+     */
+    One,
+
+    /**
+    Match the pattern zero or one time(s).
+     */
+    ZeroOrOne,
+
+    /**
+    Match the pattern zero or more times.
+     */
     ZeroOrMore,
+
+    /**
+    Match the pattern one or more times.
+     */
     OneOrMore,
+
+    /**
+    Match the pattern an exact number of times.
+     */
     ExactCount(usize),
+
+    /**
+    Match the pattern any number of times within a range.
+     */
     Range(Range<usize>)
 }
 
@@ -43,8 +66,8 @@ impl Quantifier {
      */
     pub fn to_string(&self) -> String {
         match self {
-            Quantifier::None => String::from(""),
-            Quantifier::Optional => String::from("?"),
+            Quantifier::One => String::from(""),
+            Quantifier::ZeroOrOne => String::from("?"),
             Quantifier::ZeroOrMore => String::from("*"),
             Quantifier::OneOrMore => String::from("+"),
             Quantifier::ExactCount(count) => format!("{{{}}}", count),
@@ -75,12 +98,12 @@ impl FromStr for Quantifier {
         let err = Err(QuantifierParseError);
 
         match s {
-            "?" => Ok(Quantifier::Optional),
+            "?" => Ok(Quantifier::ZeroOrOne),
             "*" => Ok(Quantifier::ZeroOrMore),
             "+" => Ok(Quantifier::OneOrMore),
             ""
             | " "
-            | "\0" => Ok(Quantifier::None),
+            | "\0" => Ok(Quantifier::One),
             // Ok(Quantifier::Range(n..m)), Ok(Quantifier::ExactCount(n)), or Err(QuantifierParseError)
             _ => {
                 if s.starts_with("{") && s.ends_with("}") {
@@ -150,7 +173,7 @@ impl From<&str> for Quantifier {
     Parse a `Quantifier`.
      */
     fn from(value: &str) -> Self {
-        Quantifier::from_str(value).unwrap_or(Quantifier::None)
+        Quantifier::from_str(value).unwrap_or(Quantifier::One)
     }
 }
 
@@ -169,21 +192,21 @@ mod tests {
 
     #[test]
     fn from_str_invalid() {
-        assert_eq!(Quantifier::from("42"), Quantifier::None);
-        assert_eq!(Quantifier::from("{}"), Quantifier::None);
-        assert_eq!(Quantifier::from("{,}"), Quantifier::None);
-        assert_eq!(Quantifier::from("{,,}"), Quantifier::None);
-        assert_eq!(Quantifier::from("{2,,}"), Quantifier::None);
-        assert_eq!(Quantifier::from("{,4,}"), Quantifier::None);
-        assert_eq!(Quantifier::from("{,,6}"), Quantifier::None);
+        assert_eq!(Quantifier::from("42"), Quantifier::One);
+        assert_eq!(Quantifier::from("{}"), Quantifier::One);
+        assert_eq!(Quantifier::from("{,}"), Quantifier::One);
+        assert_eq!(Quantifier::from("{,,}"), Quantifier::One);
+        assert_eq!(Quantifier::from("{2,,}"), Quantifier::One);
+        assert_eq!(Quantifier::from("{,4,}"), Quantifier::One);
+        assert_eq!(Quantifier::from("{,,6}"), Quantifier::One);
     }
 
     #[test]
     fn from_str_valid() {
-        assert_eq!(Quantifier::from(""), Quantifier::None);
-        assert_eq!(Quantifier::from(" "), Quantifier::None);
-        assert_eq!(Quantifier::from("\0"), Quantifier::None);
-        assert_eq!(Quantifier::from("?"), Quantifier::Optional);
+        assert_eq!(Quantifier::from(""), Quantifier::One);
+        assert_eq!(Quantifier::from(" "), Quantifier::One);
+        assert_eq!(Quantifier::from("\0"), Quantifier::One);
+        assert_eq!(Quantifier::from("?"), Quantifier::ZeroOrOne);
         assert_eq!(Quantifier::from("*"), Quantifier::ZeroOrMore);
         assert_eq!(Quantifier::from("+"), Quantifier::OneOrMore);
     }
@@ -210,21 +233,21 @@ mod tests {
 
     #[test]
     fn from_string_invalid() {
-        assert_eq!(Quantifier::from(String::from("42")), Quantifier::None);
-        assert_eq!(Quantifier::from(String::from("{}")), Quantifier::None);
-        assert_eq!(Quantifier::from(String::from("{,}")), Quantifier::None);
-        assert_eq!(Quantifier::from(String::from("{,,}")), Quantifier::None);
-        assert_eq!(Quantifier::from(String::from("{2,,}")), Quantifier::None);
-        assert_eq!(Quantifier::from(String::from("{,4,}")), Quantifier::None);
-        assert_eq!(Quantifier::from(String::from("{,,6}")), Quantifier::None);
+        assert_eq!(Quantifier::from(String::from("42")), Quantifier::One);
+        assert_eq!(Quantifier::from(String::from("{}")), Quantifier::One);
+        assert_eq!(Quantifier::from(String::from("{,}")), Quantifier::One);
+        assert_eq!(Quantifier::from(String::from("{,,}")), Quantifier::One);
+        assert_eq!(Quantifier::from(String::from("{2,,}")), Quantifier::One);
+        assert_eq!(Quantifier::from(String::from("{,4,}")), Quantifier::One);
+        assert_eq!(Quantifier::from(String::from("{,,6}")), Quantifier::One);
     }
 
     #[test]
     fn from_string_valid() {
-        assert_eq!(Quantifier::from(String::from("")), Quantifier::None);
-        assert_eq!(Quantifier::from(String::from(" ")), Quantifier::None);
-        assert_eq!(Quantifier::from(String::from("\0")), Quantifier::None);
-        assert_eq!(Quantifier::from(String::from("?")), Quantifier::Optional);
+        assert_eq!(Quantifier::from(String::from("")), Quantifier::One);
+        assert_eq!(Quantifier::from(String::from(" ")), Quantifier::One);
+        assert_eq!(Quantifier::from(String::from("\0")), Quantifier::One);
+        assert_eq!(Quantifier::from(String::from("?")), Quantifier::ZeroOrOne);
         assert_eq!(Quantifier::from(String::from("*")), Quantifier::ZeroOrMore);
         assert_eq!(Quantifier::from(String::from("+")), Quantifier::OneOrMore);
     }
@@ -251,8 +274,8 @@ mod tests {
 
     #[test]
     fn to_string() {
-        assert_eq!(Quantifier::None.to_string(), String::from(""));
-        assert_eq!(Quantifier::Optional.to_string(), String::from("?"));
+        assert_eq!(Quantifier::One.to_string(), String::from(""));
+        assert_eq!(Quantifier::ZeroOrOne.to_string(), String::from("?"));
         assert_eq!(Quantifier::ZeroOrMore.to_string(), String::from("*"));
         assert_eq!(Quantifier::OneOrMore.to_string(), String::from("+"));
         assert_eq!(Quantifier::ExactCount(42).to_string(), String::from("{42}"));
