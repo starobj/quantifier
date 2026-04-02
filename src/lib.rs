@@ -4,7 +4,7 @@ use std::{ops::Range, str::FromStr};
 pub struct QuantifierParseError;
 
 /**
-A quantifier is a representation of how many times a pattern should be matched.
+Quantifiers specify how many times a pattern must be repeated to achieve a match.
 For example, for the pattern `a`:
 
 None:

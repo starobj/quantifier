@@ -2,5 +2,6 @@
 name = "quantifier"
 version = "0.1.1"
 edition = "2024"
+description = "Pattern matching of generic types, similar to regex quantifiers"
 
 [dependencies]
