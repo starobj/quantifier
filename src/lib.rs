@@ -7,7 +7,7 @@ pub use quantifier::*;
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
+    use std::{slice::Iter, str::FromStr};
 
     use super::*;
 
@@ -119,10 +119,36 @@ mod tests {
 
     #[test]
     fn quantify_vec_match_one() {
+        let v: Vec<i32> = vec![1, 2, 1, 2];
+        let patterns_source = vec![vec![1, 2, 1, 2]];
+        let patterns = build_patterns(patterns_source.as_slice());
+
+        let actual = v.matches(&patterns, &Quantifier::One);
+
+        let expected: Vec<&[i32]> = vec![&v[..]];
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn quantify_vec_match_exact_count() {
+        let v: Vec<i32> = vec![1, 2, 1, 2];
+        let patterns_source = vec![vec![1, 2]];
+        let patterns = build_patterns(patterns_source.as_slice());
+
+        let actual = v.matches(&patterns, &Quantifier::ExactCount(2));
+
+        let expected: Vec<&[i32]> = vec![&v[..]];
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn quantify_vec_match_pattern_one() {
         let v: Vec<usize> = vec![1, 2, 1, 2];
         let pattern: Vec<usize> = vec![1, 2, 1, 2];
 
-        let actual = v.matches(&pattern.iter(), &Quantifier::One);
+        let actual = v.matches_pattern(&pattern.iter(), &Quantifier::One);
 
         let expected: Vec<&[usize]> = vec![&v[..]];
 
@@ -130,11 +156,11 @@ mod tests {
     }
 
     #[test]
-    fn quantify_vec_match_exact_count() {
+    fn quantify_vec_match_pattern_exact_count() {
         let v: Vec<usize> = vec![1, 2, 1, 2];
         let pattern: Vec<usize> = vec![1, 2];
 
-        let actual = v.matches(&pattern.iter(), &Quantifier::ExactCount(2));
+        let actual = v.matches_pattern(&pattern.iter(), &Quantifier::ExactCount(2));
 
         let expected: Vec<&[usize]> = vec![&v[..]];
 

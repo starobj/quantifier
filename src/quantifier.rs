@@ -1,4 +1,4 @@
-use std::{ops::{Range},  str::FromStr};
+use std::{fmt::Display, ops::Range, str::FromStr};
 
 /**
 Errors which can occur when attempting to interpret a string as a quantifier..
@@ -68,8 +68,6 @@ pub enum Quantifier {
     Match the pattern any number of times within a range.
      */
     Range(Range<usize>),
-
-    Not,
 }
 
 impl Quantifier {
@@ -97,8 +95,13 @@ impl Quantifier {
 
                 format!("{{{},{}}}", range.start, range.end)
             },
-            Quantifier::Not => return String::from("^"),
         }
+    }
+}
+
+impl Display for Quantifier {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.to_string())
     }
 }
 
@@ -112,13 +115,13 @@ impl FromStr for Quantifier {
         let err = Err(QuantifierParseError);
 
         match s {
-            "^" => Ok(Quantifier::Not),
             "?" => Ok(Quantifier::ZeroOrOne),
             "*" => Ok(Quantifier::ZeroOrMore),
             "+" => Ok(Quantifier::OneOrMore),
             ""
             | " " => Ok(Quantifier::One),
-            // Ok(Quantifier::Range(n..m)), Ok(Quantifier::ExactCount(n)), or Err(QuantifierParseError)
+            // result: Quantifier::Range(n..m) | Quantifier::ExactCount(n) | Quantifier::Not(q)
+            // errors: QuantifierParseError
             _ => {
                 if s.starts_with("{") && s.ends_with("}") {
                     let range_str = &s[1..(s.len() - 1)];
