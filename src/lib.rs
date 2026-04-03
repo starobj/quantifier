@@ -1,190 +1,10 @@
-use std::{ops::Range, str::FromStr};
+pub mod quantify;
+pub mod quantify_vec;
+pub mod quantifier;
 
-#[derive(Clone, Copy, Debug)]
-pub struct QuantifierParseError;
-
-/**
-Quantifiers specify how many times a pattern must be repeated to achieve a match.
-For example, for the pattern `a`:
-
-None:
-- `"a"`
-
-ZeroOrOne:
-- `""`
-- `"a"`
-
-ZeroOrMore:
-- `""`
-- `"a"`
-- `"aa"`
-- `"aaa"`
-- `...`
-
-OneOrMore:
-- `"a"`
-- `"aa"`
-- `"aaa"`
-- `...`
- */
-#[derive(Clone, Debug, PartialEq)]
-pub enum Quantifier {
-    /**
-    Match the pattern exactly.
-     */
-    One,
-
-    /**
-    Match the pattern zero or one time(s).
-     */
-    ZeroOrOne,
-
-    /**
-    Match the pattern zero or more times.
-     */
-    ZeroOrMore,
-
-    /**
-    Match the pattern one or more times.
-     */
-    OneOrMore,
-
-    /**
-    Match the pattern an exact number of times.
-     */
-    ExactCount(usize),
-
-    /**
-    Match the pattern any number of times within a range.
-     */
-    Range(Range<usize>)
-}
-
-impl Quantifier {
-    /**
-    Convert the `Quantifier` into a `String`.
-     */
-    pub fn to_string(&self) -> String {
-        match self {
-            Quantifier::One => String::from(""),
-            Quantifier::ZeroOrOne => String::from("?"),
-            Quantifier::ZeroOrMore => String::from("*"),
-            Quantifier::OneOrMore => String::from("+"),
-            Quantifier::ExactCount(count) => format!("{{{}}}", count),
-            Quantifier::Range(range) => {
-                if range.start == usize::MIN && range.end == usize::MAX {
-                    return String::from("*");
-                }
-                if range.start == usize::MIN {
-                    return format!("{{,{}}}", range.end);
-                }
-                if range.end == usize::MAX {
-                    return format!("{{{},}}", range.start);
-                }
-
-                format!("{{{},{}}}", range.start, range.end)
-            },
-        }
-    }
-}
-
-impl FromStr for Quantifier {
-    type Err = QuantifierParseError;
-
-    /**
-    Parse a `Quantifier`.
-     */
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let err = Err(QuantifierParseError);
-
-        match s {
-            "?" => Ok(Quantifier::ZeroOrOne),
-            "*" => Ok(Quantifier::ZeroOrMore),
-            "+" => Ok(Quantifier::OneOrMore),
-            ""
-            | " "
-            | "\0" => Ok(Quantifier::One),
-            // Ok(Quantifier::Range(n..m)), Ok(Quantifier::ExactCount(n)), or Err(QuantifierParseError)
-            _ => {
-                if s.starts_with("{") && s.ends_with("}") {
-                    let range_str = &s[1..(s.len() - 1)];
-
-                    match range_str.split(',').collect::<Vec<&str>>().as_slice() {
-                        [range_min_str, range_max_str] => {
-                            println!("Range({}..{})", range_min_str, range_max_str);
-                            let range_min: usize;
-                            let range_max: usize;
-
-                            if range_min_str.len() > 0 {
-                                let range_min_result = range_min_str.parse::<usize>();
-
-                                if range_min_result.is_err() {
-                                    return err;
-                                }
-
-                                range_min = range_min_result.unwrap();
-                            }
-                            else {
-                                range_min = usize::MIN;
-                            }
-
-                            if range_max_str.len() > 0 {
-                                let range_max_result = range_max_str.parse::<usize>();
-
-                                if range_max_result.is_err() {
-                                    return err;
-                                }
-
-                                range_max = range_max_result.unwrap();
-                            }
-                            else {
-                                range_max = usize::MAX;
-                            }
-
-                            if range_min == usize::MIN && range_max == usize::MAX {
-                                return Err(QuantifierParseError);
-                            }
-
-                            return Ok(Quantifier::Range(range_min..range_max));
-                        },
-                        [exact_count_str] => {
-                            let exact_count_result = exact_count_str.parse::<usize>();
-
-                            if exact_count_result.is_err() {
-                                return err;
-                            }
-
-                            let exact_count = exact_count_result.unwrap();
-
-                            return Ok(Quantifier::ExactCount(exact_count))
-                        },
-                        _ => return err,
-                    }
-                }
-
-                err
-            },
-        }
-    }
-}
-
-impl From<&str> for Quantifier {
-    /**
-    Parse a `Quantifier`.
-     */
-    fn from(value: &str) -> Self {
-        Quantifier::from_str(value).unwrap_or(Quantifier::One)
-    }
-}
-
-impl From<String> for Quantifier {
-    /**
-    Parse a `Quantifier`.
-     */
-    fn from(value: String) -> Self {
-        Quantifier::from(value.as_str())
-    }
-}
+pub use quantify::*;
+pub use quantify_vec::*;
+pub use quantifier::*;
 
 #[cfg(test)]
 mod tests {
@@ -192,20 +12,21 @@ mod tests {
 
     #[test]
     fn from_str_invalid() {
-        assert_eq!(Quantifier::from("42"), Quantifier::One);
-        assert_eq!(Quantifier::from("{}"), Quantifier::One);
-        assert_eq!(Quantifier::from("{,}"), Quantifier::One);
-        assert_eq!(Quantifier::from("{,,}"), Quantifier::One);
-        assert_eq!(Quantifier::from("{2,,}"), Quantifier::One);
-        assert_eq!(Quantifier::from("{,4,}"), Quantifier::One);
-        assert_eq!(Quantifier::from("{,,6}"), Quantifier::One);
+        assert_eq!(Quantifier::from("\0"), Quantifier::Invalid);
+        assert_eq!(Quantifier::from("42"), Quantifier::Invalid);
+        assert_eq!(Quantifier::from("42"), Quantifier::Invalid);
+        assert_eq!(Quantifier::from("{}"), Quantifier::Invalid);
+        assert_eq!(Quantifier::from("{,}"), Quantifier::Invalid);
+        assert_eq!(Quantifier::from("{,,}"), Quantifier::Invalid);
+        assert_eq!(Quantifier::from("{2,,}"), Quantifier::Invalid);
+        assert_eq!(Quantifier::from("{,4,}"), Quantifier::Invalid);
+        assert_eq!(Quantifier::from("{,,6}"), Quantifier::Invalid);
     }
 
     #[test]
     fn from_str_valid() {
         assert_eq!(Quantifier::from(""), Quantifier::One);
         assert_eq!(Quantifier::from(" "), Quantifier::One);
-        assert_eq!(Quantifier::from("\0"), Quantifier::One);
         assert_eq!(Quantifier::from("?"), Quantifier::ZeroOrOne);
         assert_eq!(Quantifier::from("*"), Quantifier::ZeroOrMore);
         assert_eq!(Quantifier::from("+"), Quantifier::OneOrMore);
@@ -233,20 +54,20 @@ mod tests {
 
     #[test]
     fn from_string_invalid() {
-        assert_eq!(Quantifier::from(String::from("42")), Quantifier::One);
-        assert_eq!(Quantifier::from(String::from("{}")), Quantifier::One);
-        assert_eq!(Quantifier::from(String::from("{,}")), Quantifier::One);
-        assert_eq!(Quantifier::from(String::from("{,,}")), Quantifier::One);
-        assert_eq!(Quantifier::from(String::from("{2,,}")), Quantifier::One);
-        assert_eq!(Quantifier::from(String::from("{,4,}")), Quantifier::One);
-        assert_eq!(Quantifier::from(String::from("{,,6}")), Quantifier::One);
+        assert_eq!(Quantifier::from(String::from("\0")), Quantifier::Invalid);
+        assert_eq!(Quantifier::from(String::from("42")), Quantifier::Invalid);
+        assert_eq!(Quantifier::from(String::from("{}")), Quantifier::Invalid);
+        assert_eq!(Quantifier::from(String::from("{,}")), Quantifier::Invalid);
+        assert_eq!(Quantifier::from(String::from("{,,}")), Quantifier::Invalid);
+        assert_eq!(Quantifier::from(String::from("{2,,}")), Quantifier::Invalid);
+        assert_eq!(Quantifier::from(String::from("{,4,}")), Quantifier::Invalid);
+        assert_eq!(Quantifier::from(String::from("{,,6}")), Quantifier::Invalid);
     }
 
     #[test]
     fn from_string_valid() {
         assert_eq!(Quantifier::from(String::from("")), Quantifier::One);
         assert_eq!(Quantifier::from(String::from(" ")), Quantifier::One);
-        assert_eq!(Quantifier::from(String::from("\0")), Quantifier::One);
         assert_eq!(Quantifier::from(String::from("?")), Quantifier::ZeroOrOne);
         assert_eq!(Quantifier::from(String::from("*")), Quantifier::ZeroOrMore);
         assert_eq!(Quantifier::from(String::from("+")), Quantifier::OneOrMore);
@@ -270,6 +91,30 @@ mod tests {
     #[test]
     fn from_string_range_min_valid() {
         assert_eq!(Quantifier::from(String::from("{,4}")), Quantifier::Range(usize::MIN..4));
+    }
+
+    #[test]
+    fn quantify_vec_match_one() {
+        let v: Vec<usize> = vec![1, 2, 1, 2];
+        let pattern: Vec<usize> = vec![1, 2, 1, 2];
+
+        let actual = v.matches(&pattern.iter(), &Quantifier::One);
+
+        let expected: Vec<&[usize]> = vec![&v[..]];
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn quantify_vec_match_exact_count() {
+        let v: Vec<usize> = vec![1, 2, 1, 2];
+        let pattern: Vec<usize> = vec![1, 2];
+
+        let actual = v.matches(&pattern.iter(), &Quantifier::ExactCount(2));
+
+        let expected: Vec<&[usize]> = vec![&v[..]];
+
+        assert_eq!(actual, expected);
     }
 
     #[test]
