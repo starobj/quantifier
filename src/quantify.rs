@@ -1,12 +1,12 @@
 use crate::quantifier::*;
 
-use std::{fmt::Display, ops::{Index, Range}};
+use std::ops::{Index, Range};
 
 pub trait Quantify<'a, 'pattern, P, T, Item>
 where
     Self: 'a + Clone + Index<usize, Output = T> + Index<Range<usize>, Output = [T]> + IntoIterator,
-    T: Display + PartialEq + Sized + 'a,
-    Item: Display + PartialEq<&'a T> + 'pattern,
+    T: PartialEq + Sized + 'a,
+    Item: PartialEq<&'a T> + 'pattern,
     P: 'pattern + Clone + Iterator<Item = Item>,
 {
     // --- Pattern Management ---

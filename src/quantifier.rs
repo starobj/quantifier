@@ -1,11 +1,11 @@
-use std::{ops::{Index, Range}, process::Output, slice::SliceIndex, str::FromStr};
+use std::{ops::{Range},  str::FromStr};
 
 /**
 Errors which can occur when attempting to interpret a string as a quantifier..
 
 As such, the from_utf8 family of functions and methods for both Strings and &strs make use of this error, for example.
  */
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct QuantifierParseError;
 
 /**

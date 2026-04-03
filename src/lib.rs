@@ -3,15 +3,39 @@ pub mod quantify_vec;
 pub mod quantifier;
 
 pub use quantify::*;
-pub use quantify_vec::*;
 pub use quantifier::*;
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use super::*;
 
     #[test]
     fn from_str_invalid() {
+        assert_eq!(Quantifier::from_str("\0"), Err(QuantifierParseError));
+        assert_eq!(Quantifier::from_str("42"), Err(QuantifierParseError));
+        assert_eq!(Quantifier::from_str("42"), Err(QuantifierParseError));
+        assert_eq!(Quantifier::from_str("{}"), Err(QuantifierParseError));
+        assert_eq!(Quantifier::from_str("{,}"), Err(QuantifierParseError));
+        assert_eq!(Quantifier::from_str("{,,}"), Err(QuantifierParseError));
+        assert_eq!(Quantifier::from_str("{2,,}"), Err(QuantifierParseError));
+        assert_eq!(Quantifier::from_str("{,4,}"), Err(QuantifierParseError));
+        assert_eq!(Quantifier::from_str("{,,6}"), Err(QuantifierParseError));
+    }
+
+    #[test]
+    fn from_str_valid() {
+        assert_eq!(Quantifier::from_str("").unwrap(), Quantifier::One);
+        assert_eq!(Quantifier::from_str(" ").unwrap(), Quantifier::One);
+        assert_eq!(Quantifier::from_str("?").unwrap(), Quantifier::ZeroOrOne);
+        assert_eq!(Quantifier::from_str("*").unwrap(), Quantifier::ZeroOrMore);
+        assert_eq!(Quantifier::from_str("+").unwrap(), Quantifier::OneOrMore);
+        assert_eq!(Quantifier::from_str("{2,4}").unwrap(), Quantifier::Range(2..4));
+    }
+
+    #[test]
+    fn from_invalid() {
         assert_eq!(Quantifier::from("\0"), Quantifier::Invalid);
         assert_eq!(Quantifier::from("42"), Quantifier::Invalid);
         assert_eq!(Quantifier::from("42"), Quantifier::Invalid);
@@ -24,7 +48,7 @@ mod tests {
     }
 
     #[test]
-    fn from_str_valid() {
+    fn from_valid() {
         assert_eq!(Quantifier::from(""), Quantifier::One);
         assert_eq!(Quantifier::from(" "), Quantifier::One);
         assert_eq!(Quantifier::from("?"), Quantifier::ZeroOrOne);
@@ -33,22 +57,22 @@ mod tests {
     }
 
     #[test]
-    fn from_str_exact_count_valid() {
+    fn from_exact_count_valid() {
         assert_eq!(Quantifier::from("{42}"), Quantifier::ExactCount(42));
     }
 
     #[test]
-    fn from_str_range_full_valid() {
+    fn from_range_full_valid() {
         assert_eq!(Quantifier::from("{2,4}"), Quantifier::Range(2..4));
     }
 
     #[test]
-    fn from_str_range_max_valid() {
+    fn from_range_max_valid() {
         assert_eq!(Quantifier::from("{2,}"), Quantifier::Range(2..usize::MAX));
     }
 
     #[test]
-    fn from_str_range_min_valid() {
+    fn from_range_min_valid() {
         assert_eq!(Quantifier::from("{,4}"), Quantifier::Range(usize::MIN..4));
     }
 
