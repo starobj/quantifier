@@ -203,7 +203,7 @@ where
                     }
                 }
                 true
-            }
+            },
             Quantifier::ExactCount(n) => {
                 let pattern_len = Self::calculate_pattern_length(pattern);
                 if slice_len % pattern_len != 0 || slice_len / pattern_len != *n {
@@ -216,7 +216,7 @@ where
                     }
                 }
                 true
-            }
+            },
             _ => false,
         }
     }
