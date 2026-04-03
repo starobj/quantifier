@@ -7,7 +7,7 @@ pub use quantifier::*;
 
 #[cfg(test)]
 mod tests {
-    use std::{slice::Iter, str::FromStr};
+    use std::{str::FromStr};
 
     use super::*;
 
