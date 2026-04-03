@@ -36,15 +36,15 @@ mod tests {
 
     #[test]
     fn from_invalid() {
-        assert_eq!(Quantifier::from("\0"), Quantifier::Invalid);
-        assert_eq!(Quantifier::from("42"), Quantifier::Invalid);
-        assert_eq!(Quantifier::from("42"), Quantifier::Invalid);
-        assert_eq!(Quantifier::from("{}"), Quantifier::Invalid);
-        assert_eq!(Quantifier::from("{,}"), Quantifier::Invalid);
-        assert_eq!(Quantifier::from("{,,}"), Quantifier::Invalid);
-        assert_eq!(Quantifier::from("{2,,}"), Quantifier::Invalid);
-        assert_eq!(Quantifier::from("{,4,}"), Quantifier::Invalid);
-        assert_eq!(Quantifier::from("{,,6}"), Quantifier::Invalid);
+        assert_eq!(Quantifier::from("\0").is_invalid(), true);
+        assert_eq!(Quantifier::from("42").is_invalid(), true);
+        assert_eq!(Quantifier::from("42").is_invalid(), true);
+        assert_eq!(Quantifier::from("{}").is_invalid(), true);
+        assert_eq!(Quantifier::from("{,}").is_invalid(), true);
+        assert_eq!(Quantifier::from("{,,}").is_invalid(), true);
+        assert_eq!(Quantifier::from("{2,,}").is_invalid(), true);
+        assert_eq!(Quantifier::from("{,4,}").is_invalid(), true);
+        assert_eq!(Quantifier::from("{,,6}").is_invalid(), true);
     }
 
     #[test]
@@ -78,14 +78,14 @@ mod tests {
 
     #[test]
     fn from_string_invalid() {
-        assert_eq!(Quantifier::from(String::from("\0")), Quantifier::Invalid);
-        assert_eq!(Quantifier::from(String::from("42")), Quantifier::Invalid);
-        assert_eq!(Quantifier::from(String::from("{}")), Quantifier::Invalid);
-        assert_eq!(Quantifier::from(String::from("{,}")), Quantifier::Invalid);
-        assert_eq!(Quantifier::from(String::from("{,,}")), Quantifier::Invalid);
-        assert_eq!(Quantifier::from(String::from("{2,,}")), Quantifier::Invalid);
-        assert_eq!(Quantifier::from(String::from("{,4,}")), Quantifier::Invalid);
-        assert_eq!(Quantifier::from(String::from("{,,6}")), Quantifier::Invalid);
+        assert_eq!(Quantifier::from(String::from("\0")).is_invalid(), true);
+        assert_eq!(Quantifier::from(String::from("42")).is_invalid(), true);
+        assert_eq!(Quantifier::from(String::from("{}")).is_invalid(), true);
+        assert_eq!(Quantifier::from(String::from("{,}")).is_invalid(), true);
+        assert_eq!(Quantifier::from(String::from("{,,}")).is_invalid(), true);
+        assert_eq!(Quantifier::from(String::from("{2,,}")).is_invalid(), true);
+        assert_eq!(Quantifier::from(String::from("{,4,}")).is_invalid(), true);
+        assert_eq!(Quantifier::from(String::from("{,,6}")).is_invalid(), true);
     }
 
     #[test]
@@ -118,12 +118,12 @@ mod tests {
     }
 
     #[test]
-    fn quantify_vec_match_one() {
+    fn quantify_vec_matches_all_one() {
         let v: Vec<i32> = vec![1, 2, 1, 2];
         let patterns_source = vec![vec![1, 2, 1, 2]];
         let patterns = build_patterns(patterns_source.as_slice());
 
-        let actual = v.matches(&patterns, &Quantifier::One);
+        let actual = v.matches_all(&patterns, &Quantifier::One);
 
         let expected: Vec<&[i32]> = vec![&v[..]];
 
@@ -131,12 +131,12 @@ mod tests {
     }
 
     #[test]
-    fn quantify_vec_match_exact_count() {
+    fn quantify_vec_matches_all_exact_count() {
         let v: Vec<i32> = vec![1, 2, 1, 2];
         let patterns_source = vec![vec![1, 2]];
         let patterns = build_patterns(patterns_source.as_slice());
 
-        let actual = v.matches(&patterns, &Quantifier::ExactCount(2));
+        let actual = v.matches_all(&patterns, &Quantifier::ExactCount(2));
 
         let expected: Vec<&[i32]> = vec![&v[..]];
 
@@ -144,7 +144,7 @@ mod tests {
     }
 
     #[test]
-    fn quantify_vec_match_pattern_one() {
+    fn quantify_vec_matches_pattern_one() {
         let v: Vec<usize> = vec![1, 2, 1, 2];
         let pattern: Vec<usize> = vec![1, 2, 1, 2];
 
@@ -156,7 +156,7 @@ mod tests {
     }
 
     #[test]
-    fn quantify_vec_match_pattern_exact_count() {
+    fn quantify_vec_matches_pattern_exact_count() {
         let v: Vec<usize> = vec![1, 2, 1, 2];
         let pattern: Vec<usize> = vec![1, 2];
 

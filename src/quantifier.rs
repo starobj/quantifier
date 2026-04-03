@@ -32,10 +32,30 @@ OneOrMore:
 - `"aaa"`
 - `...`
  */
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum Quantifier {
     /**
     Invalid quantifier.
+    This is similar to NaN (Not a Number),
+    in that `Quantifier::Invalid` does not equal itself.
+    This is because differing strings could be parsed as `Quantifier::Invalid`,
+    meaning that two (2) different instances of `Quantifier::Invalid` could
+    represent different strings.
+    Because of this, `Quantifier::Invalid == Quantifier::Invalid` is `false`.
+    To check if a `Quantifier` is invalid or valid,
+    instead use `Quantifier::is_invalid()` and `Quantifier::is_valid()`:
+
+    ```rs
+    // If the quantifier is invalid:
+    if quantifier.is_invalid() {
+        // The quantifier is invalid.
+    }
+
+    // If the quantifier is valid:
+    if quantifier.is_valid() {
+        // The quantifier is valid.
+    }
+    ```
      */
     Invalid,
 
@@ -71,6 +91,19 @@ pub enum Quantifier {
 }
 
 impl Quantifier {
+
+    pub fn is_invalid(&self) -> bool {
+        !self.is_valid()
+    }
+
+
+    pub fn is_valid(&self) -> bool {
+        match self {
+            Quantifier::Invalid => false,
+            _ => true,
+        }
+    }
+
     /**
     Convert the `Quantifier` into a `String`.
      */
@@ -95,6 +128,20 @@ impl Quantifier {
 
                 format!("{{{},{}}}", range.start, range.end)
             },
+        }
+    }
+}
+
+impl PartialEq for Quantifier {
+    fn eq(&self, other: &Self) -> bool {
+        if matches!(self, Self::Invalid) || matches!(other, Self::Invalid) {
+            return false;
+        }
+
+        match (self, other) {
+            (Self::ExactCount(lhs), Self::ExactCount(rhs)) => lhs == rhs,
+            (Self::Range(lhs), Self::Range(rhs)) => lhs == rhs,
+            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
         }
     }
 }

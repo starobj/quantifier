@@ -59,9 +59,50 @@ where
     }
 
     /**
-    Return a vector containing each slice that matches the quantified patterns.
+    Return a vector containing each slice that matches all of the quantified patterns.
      */
-    fn  matches(
+    fn  matches_all(
+        &'a self,
+        patterns: &'pattern Vec<Self::Pattern>,
+        quantifier: &'a Quantifier,
+    ) -> Vec<&'a [T]> {
+        let mut matches = vec![];
+        // let pattern_len = Self::calculate_pattern_length(pattern);
+        let self_len = Self::calculate_length(self);
+
+        // Loop from 0 to the length of self:
+        for i in 0..self_len {
+            // Get the next slice to try matching.
+            let slice = &self[i..self_len];
+
+            let mut is_match = true;
+
+            // For each pattern:
+            for pattern in patterns {
+                // If the slice does not match the pattern:
+                if !self.try_match(pattern, quantifier, slice) {
+                    // Remove the match.
+                    is_match = false;
+
+                    // A match was found; try matching the next slice.
+                    // To do so, break the loop.
+                    break;
+                }
+            }
+
+            if is_match {
+                // Add the match.
+                matches.push(slice);
+            }
+        }
+
+        matches
+    }
+
+    /**
+    Return a vector containing each slice that matches any of the quantified patterns.
+     */
+    fn  matches_any(
         &'a self,
         patterns: &'pattern Vec<Self::Pattern>,
         quantifier: &'a Quantifier,
@@ -93,9 +134,9 @@ where
     }
 
     /**
-    Return a vector containing each slice that does not  match the quantified patterns.
+    Return a vector containing each slice that doesn't match any of the quantified patterns.
      */
-    fn  matches_not(
+    fn  matches_any_not(
         &'a self,
         patterns: &'pattern Vec<Self::Pattern>,
         quantifier: &'a Quantifier,
@@ -120,6 +161,47 @@ where
                     // To do so, break the loop.
                     break;
                 }
+            }
+        }
+
+        matches
+    }
+
+    /**
+    Return a vector containing each slice that matches none of the quantified patterns.
+     */
+    fn  matches_none(
+        &'a self,
+        patterns: &'pattern Vec<Self::Pattern>,
+        quantifier: &'a Quantifier,
+    ) -> Vec<&'a [T]> {
+        let mut matches = vec![];
+        // let pattern_len = Self::calculate_pattern_length(pattern);
+        let self_len = Self::calculate_length(self);
+
+        // Loop from 0 to the length of self:
+        for i in 0..self_len {
+            // Get the next slice to try matching.
+            let slice = &self[i..self_len];
+
+            let mut is_match = true;
+
+            // For each pattern:
+            for pattern in patterns {
+                // If the slice matches the pattern:
+                if self.try_match(pattern, quantifier, slice) {
+                    // Remove the match.
+                    is_match = false;
+
+                    // A match was found; try matching the next slice.
+                    // To do so, break the loop.
+                    break;
+                }
+            }
+
+            if is_match {
+                // Add the match.
+                matches.push(slice);
             }
         }
 
@@ -217,6 +299,7 @@ where
                 }
                 true
             },
+            Quantifier::ZeroOrOne => true,
             _ => false,
         }
     }
