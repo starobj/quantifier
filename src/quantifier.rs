@@ -35,81 +35,76 @@ OneOrMore:
 #[derive(Clone, Debug)]
 pub enum Quantifier {
     /**
-    Invalid quantifier.
-    This is similar to NaN (Not a Number),
-    in that `Quantifier::Invalid` does not equal itself.
-    This is because differing strings could be parsed as `Quantifier::Invalid`,
-    meaning that two (2) different instances of `Quantifier::Invalid` could
-    represent different strings.
-    Because of this, `Quantifier::Invalid == Quantifier::Invalid` is `false`.
-    To check if a `Quantifier` is invalid or valid,
-    instead use `Quantifier::is_invalid()` and `Quantifier::is_valid()`:
-
-    ```rs
-    // If the quantifier is invalid:
-    if quantifier.is_invalid() {
-        // The quantifier is invalid.
-    }
-
-    // If the quantifier is valid:
-    if quantifier.is_valid() {
-        // The quantifier is valid.
-    }
-    ```
-     */
-    Invalid,
-
-    /**
     Match the pattern exactly.
+
+    Examples matching `a`:
+
+    - `"a"`
      */
     One,
 
     /**
     Match the pattern zero or one time(s).
+
+    Examples matching `a?`:
+
+    - `""`
+    - `"a"`
      */
     ZeroOrOne,
 
     /**
     Match the pattern zero or more times.
+
+    Examples matching `a*`:
+
+    - `""`
+    - `"a"`
+    - `"aa"`
+    - `"aaa"`
+    - ...
      */
     ZeroOrMore,
 
     /**
     Match the pattern one or more times.
+
+    Examples matching `a+`:
+
+    - `"a"`
+    - `"aa"`
+    - `"aaa"`
+    - ...
      */
     OneOrMore,
 
     /**
     Match the pattern an exact number of times.
+
+    Examples matching `a{4}`:
+
+    - `"aaaa"`
      */
     ExactCount(usize),
 
     /**
     Match the pattern any number of times within a range.
+
+    Examples matching `a{2,4}`:
+
+    - `"aa"`
+    - `"aaa"`
+    - `"aaaa"`
      */
     Range(Range<usize>),
 }
 
 impl Quantifier {
-
-    pub fn is_invalid(&self) -> bool {
-        !self.is_valid()
-    }
-
-
-    pub fn is_valid(&self) -> bool {
-        match self {
-            Quantifier::Invalid => false,
-            _ => true,
-        }
-    }
-
     /**
     Convert the `Quantifier` into a `String`.
      */
     pub fn to_string(&self) -> String {
         match self {
-            Quantifier::Invalid => String::from("\0"),
             Quantifier::One => String::from(""),
             Quantifier::ZeroOrOne => String::from("?"),
             Quantifier::ZeroOrMore => String::from("*"),
@@ -134,10 +129,6 @@ impl Quantifier {
 
 impl PartialEq for Quantifier {
     fn eq(&self, other: &Self) -> bool {
-        if matches!(self, Self::Invalid) || matches!(other, Self::Invalid) {
-            return false;
-        }
-
         match (self, other) {
             (Self::ExactCount(lhs), Self::ExactCount(rhs)) => lhs == rhs,
             (Self::Range(lhs), Self::Range(rhs)) => lhs == rhs,
@@ -236,7 +227,7 @@ impl From<&str> for Quantifier {
     Parse a `Quantifier`.
      */
     fn from(value: &str) -> Self {
-        Quantifier::from_str(value).unwrap_or(Quantifier::Invalid)
+        Quantifier::from_str(value).unwrap_or(Quantifier::One)
     }
 }
 

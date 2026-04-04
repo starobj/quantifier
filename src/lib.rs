@@ -36,15 +36,15 @@ mod tests {
 
     #[test]
     fn from_invalid() {
-        assert_eq!(Quantifier::from("\0").is_invalid(), true);
-        assert_eq!(Quantifier::from("42").is_invalid(), true);
-        assert_eq!(Quantifier::from("42").is_invalid(), true);
-        assert_eq!(Quantifier::from("{}").is_invalid(), true);
-        assert_eq!(Quantifier::from("{,}").is_invalid(), true);
-        assert_eq!(Quantifier::from("{,,}").is_invalid(), true);
-        assert_eq!(Quantifier::from("{2,,}").is_invalid(), true);
-        assert_eq!(Quantifier::from("{,4,}").is_invalid(), true);
-        assert_eq!(Quantifier::from("{,,6}").is_invalid(), true);
+        assert_eq!(Quantifier::from("\0"), Quantifier::One);
+        assert_eq!(Quantifier::from("42"), Quantifier::One);
+        assert_eq!(Quantifier::from("42"), Quantifier::One);
+        assert_eq!(Quantifier::from("{}"), Quantifier::One);
+        assert_eq!(Quantifier::from("{,}"), Quantifier::One);
+        assert_eq!(Quantifier::from("{,,}"), Quantifier::One);
+        assert_eq!(Quantifier::from("{2,,}"), Quantifier::One);
+        assert_eq!(Quantifier::from("{,4,}"), Quantifier::One);
+        assert_eq!(Quantifier::from("{,,6}"), Quantifier::One);
     }
 
     #[test]
@@ -78,14 +78,14 @@ mod tests {
 
     #[test]
     fn from_string_invalid() {
-        assert_eq!(Quantifier::from(String::from("\0")).is_invalid(), true);
-        assert_eq!(Quantifier::from(String::from("42")).is_invalid(), true);
-        assert_eq!(Quantifier::from(String::from("{}")).is_invalid(), true);
-        assert_eq!(Quantifier::from(String::from("{,}")).is_invalid(), true);
-        assert_eq!(Quantifier::from(String::from("{,,}")).is_invalid(), true);
-        assert_eq!(Quantifier::from(String::from("{2,,}")).is_invalid(), true);
-        assert_eq!(Quantifier::from(String::from("{,4,}")).is_invalid(), true);
-        assert_eq!(Quantifier::from(String::from("{,,6}")).is_invalid(), true);
+        assert_eq!(Quantifier::from(String::from("\0")), Quantifier::One);
+        assert_eq!(Quantifier::from(String::from("42")), Quantifier::One);
+        assert_eq!(Quantifier::from(String::from("{}")), Quantifier::One);
+        assert_eq!(Quantifier::from(String::from("{,}")), Quantifier::One);
+        assert_eq!(Quantifier::from(String::from("{,,}")), Quantifier::One);
+        assert_eq!(Quantifier::from(String::from("{2,,}")), Quantifier::One);
+        assert_eq!(Quantifier::from(String::from("{,4,}")), Quantifier::One);
+        assert_eq!(Quantifier::from(String::from("{,,6}")), Quantifier::One);
     }
 
     #[test]

@@ -41,19 +41,19 @@ where
     fn first_match(
         &'a self,
         pattern: &'pattern Self::Pattern,
-        quantifier: &'a Quantifier,
+        quantifier: &Quantifier,
     ) -> Option<&'a [T]> {
         self.matches_pattern(pattern, quantifier).first().copied()
     }
 
-    fn is_match(&'a self, pattern: &'pattern Self::Pattern, quantifier: &'a Quantifier) -> bool {
+    fn is_match(&'a self, pattern: &'pattern Self::Pattern, quantifier: &Quantifier) -> bool {
         !self.matches_pattern(pattern, quantifier).is_empty()
     }
 
     fn last_match(
         &'a self,
         pattern: &'pattern Self::Pattern,
-        quantifier: &'a Quantifier,
+        quantifier: &Quantifier,
     ) -> Option<&'a [T]> {
         self.matches_pattern(pattern, quantifier).last().copied()
     }
@@ -64,7 +64,7 @@ where
     fn  matches_all(
         &'a self,
         patterns: &'pattern Vec<Self::Pattern>,
-        quantifier: &'a Quantifier,
+        quantifier: &Quantifier,
     ) -> Vec<&'a [T]> {
         let mut matches = vec![];
         // let pattern_len = Self::calculate_pattern_length(pattern);
@@ -105,7 +105,7 @@ where
     fn  matches_any(
         &'a self,
         patterns: &'pattern Vec<Self::Pattern>,
-        quantifier: &'a Quantifier,
+        quantifier: &Quantifier,
     ) -> Vec<&'a [T]> {
         let mut matches = vec![];
         // let pattern_len = Self::calculate_pattern_length(pattern);
@@ -139,7 +139,7 @@ where
     fn  matches_any_not(
         &'a self,
         patterns: &'pattern Vec<Self::Pattern>,
-        quantifier: &'a Quantifier,
+        quantifier: &Quantifier,
     ) -> Vec<&'a [T]> {
         let mut matches = vec![];
         // let pattern_len = Self::calculate_pattern_length(pattern);
@@ -173,7 +173,7 @@ where
     fn  matches_none(
         &'a self,
         patterns: &'pattern Vec<Self::Pattern>,
-        quantifier: &'a Quantifier,
+        quantifier: &Quantifier,
     ) -> Vec<&'a [T]> {
         let mut matches = vec![];
         // let pattern_len = Self::calculate_pattern_length(pattern);
@@ -214,14 +214,15 @@ where
     fn  matches_pattern(
         &'a self,
         pattern: &'pattern Self::Pattern,
-        quantifier: &'a Quantifier,
+        quantifier: &Quantifier,
     ) -> Vec<&'a [T]> {
         let mut matches = vec![];
-        // let pattern_len = Self::calculate_pattern_length(pattern);
+
         let self_len = Self::calculate_length(self);
 
         for i in 0..self_len {
             let slice = &self[i..self_len];
+
             if self.try_match(pattern, quantifier, slice) {
                 matches.push(slice);
             }
@@ -236,14 +237,15 @@ where
     fn  matches_pattern_not(
         &'a self,
         pattern: &'pattern Self::Pattern,
-        quantifier: &'a Quantifier,
+        quantifier: &Quantifier,
     ) -> Vec<&'a [T]> {
         let mut matches = vec![];
-        // let pattern_len = Self::calculate_pattern_length(pattern);
+
         let self_len = Self::calculate_length(self);
 
         for i in 0..self_len {
             let slice = &self[i..self_len];
+
             if !self.try_match(pattern, quantifier, slice) {
                 matches.push(slice);
             }
@@ -263,7 +265,7 @@ where
     fn try_match(
         &'a self,
         pattern: &'pattern Self::Pattern,
-        quantifier: &'a Quantifier,
+        quantifier: &Quantifier,
         slice: &'a [T],
     ) -> bool {
         let slice_len = slice.len();
@@ -288,15 +290,19 @@ where
             },
             Quantifier::ExactCount(n) => {
                 let pattern_len = Self::calculate_pattern_length(pattern);
+
                 if slice_len % pattern_len != 0 || slice_len / pattern_len != *n {
                     return false;
                 }
+
                 for i in 0..*n {
                     let sub_slice = &slice[i * pattern_len..(i + 1) * pattern_len];
+
                     if !self.try_match(pattern, &Quantifier::One, sub_slice) {
                         return false;
                     }
                 }
+
                 true
             },
             Quantifier::ZeroOrOne => true,
