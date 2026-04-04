@@ -168,6 +168,25 @@ mod tests {
     }
 
     #[test]
+    fn quantify_vec_matches_pattern_zero_or_one() {
+        let v: Vec<usize> = vec![1, 2, 1, 2];
+        let empty = &v[..0];
+        let one_two = &v[0..=1];
+        let pattern_valid_a: Vec<usize> = vec![1, 2];
+        let pattern_valid_b: Vec<usize> = vec![1];
+
+        let mut actual = v.matches_pattern(&pattern_valid_a.iter(), &Quantifier::ZeroOrOne);
+        let mut expected: Vec<&[usize]> = vec![empty, one_two, empty, empty, one_two, empty, empty];
+
+        assert_eq!(actual, expected);
+
+        actual = v.matches_pattern(&pattern_valid_b.iter(), &Quantifier::ZeroOrOne);
+        expected = vec![empty, one_two, empty, empty];
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
     fn to_string() {
         assert_eq!(Quantifier::One.to_string(), String::from(""));
         assert_eq!(Quantifier::ZeroOrOne.to_string(), String::from("?"));

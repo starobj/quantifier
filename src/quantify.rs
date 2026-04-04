@@ -1,16 +1,17 @@
 use crate::quantifier::*;
 
-use std::{ops::{Index, Range}, slice::Iter};
+use std::{ops::{Index, Range, RangeTo}, slice::Iter};
+use std::fmt::Debug;
 
 pub fn build_patterns<'r>(patterns: &'r [Vec<i32>]) -> Vec<Iter<'r, i32>> {
     patterns.iter().map(|x| x.iter()).collect()
 }
 
-pub trait Quantify<'a, 'pattern, T, Item, Pattern>
+pub trait Quantify<'collection, 'pattern, T, Item, Pattern>
 where
-    Self: 'a + Clone + Index<usize, Output = T> + Index<Range<usize>, Output = [T]> + IntoIterator,
-    T: PartialEq + Sized + 'a,
-    Item: PartialEq<&'a T> + 'pattern,
+    Self: 'collection + Clone + Index<usize, Output = T> + Index<Range<usize>, Output = [T]> + Index<RangeTo<usize>, Output = [T]> + IntoIterator,
+    T: Debug + PartialEq + Sized + 'collection,
+    Item: Debug + PartialEq<&'collection T> + 'pattern,
 {
     // --- Pattern Management ---
 
@@ -29,22 +30,22 @@ where
     // --- Matching ---
 
     fn first_match(
-        &'a self,
+        &'collection self,
         pattern: &'pattern Self::Pattern,
         quantifier: &Quantifier,
-    ) -> Option<&'a [T]> {
+    ) -> Option<&'collection [T]> {
         self.matches_pattern(pattern, quantifier).first().copied()
     }
 
-    fn is_match(&'a self, pattern: &'pattern Self::Pattern, quantifier: &Quantifier) -> bool {
+    fn is_match(&'collection self, pattern: &'pattern Self::Pattern, quantifier: &Quantifier) -> bool {
         !self.matches_pattern(pattern, quantifier).is_empty()
     }
 
     fn last_match(
-        &'a self,
+        &'collection self,
         pattern: &'pattern Self::Pattern,
         quantifier: &Quantifier,
-    ) -> Option<&'a [T]> {
+    ) -> Option<&'collection [T]> {
         self.matches_pattern(pattern, quantifier).last().copied()
     }
 
@@ -52,10 +53,10 @@ where
     Return a vector containing each slice that matches all of the quantified patterns.
      */
     fn  matches_all(
-        &'a self,
+        &'collection self,
         patterns: &'pattern Vec<Self::Pattern>,
         quantifier: &Quantifier,
-    ) -> Vec<&'a [T]> {
+    ) -> Vec<&'collection [T]> {
         let mut matches = vec![];
 
         let self_len = Self::calculate_length(self);
@@ -93,10 +94,10 @@ where
     Return a vector containing each slice that matches any of the quantified patterns.
      */
     fn  matches_any(
-        &'a self,
+        &'collection self,
         patterns: &'pattern Vec<Self::Pattern>,
         quantifier: &Quantifier,
-    ) -> Vec<&'a [T]> {
+    ) -> Vec<&'collection [T]> {
         let mut matches = vec![];
 
         let self_len = Self::calculate_length(self);
@@ -127,10 +128,10 @@ where
     Return a vector containing each slice that doesn't match any of the quantified patterns.
      */
     fn  matches_any_not(
-        &'a self,
+        &'collection self,
         patterns: &'pattern Vec<Self::Pattern>,
         quantifier: &Quantifier,
-    ) -> Vec<&'a [T]> {
+    ) -> Vec<&'collection [T]> {
         let mut matches = vec![];
         // let pattern_len = Self::calculate_pattern_length(pattern);
         let self_len = Self::calculate_length(self);
@@ -161,10 +162,10 @@ where
     Return a vector containing each slice that matches none of the quantified patterns.
      */
     fn  matches_none(
-        &'a self,
+        &'collection self,
         patterns: &'pattern Vec<Self::Pattern>,
         quantifier: &Quantifier,
-    ) -> Vec<&'a [T]> {
+    ) -> Vec<&'collection [T]> {
         let mut matches = vec![];
         // let pattern_len = Self::calculate_pattern_length(pattern);
         let self_len = Self::calculate_length(self);
@@ -202,19 +203,34 @@ where
     Return a vector containing each slice that matches the quantified pattern.
      */
     fn  matches_pattern(
-        &'a self,
+        &'collection self,
         pattern: &'pattern Self::Pattern,
         quantifier: &Quantifier,
-    ) -> Vec<&'a [T]> {
+    ) -> Vec<&'collection [T]> {
         let mut matches = vec![];
 
         let self_len = Self::calculate_length(self);
 
-        for i in 0..self_len {
-            let slice = &self[i..self_len];
+        let mut pc = pattern.clone();
+        println!("Pattern:");
+        for _ in 0..Self::calculate_pattern_length(pattern) {
+            println!("- {:?}", pc.next().unwrap());
+        }
 
-            if self.try_match(pattern, quantifier, slice) {
-                matches.push(slice);
+        for i in 0..=self_len {
+            for j in i..=self_len {
+                let slice = if i == 0 { &self[..j] } else { &self[i..j] };
+
+                println!("SLICE: {:?} ({})", i..j, j - i);
+                println!("{:?}", slice);
+
+                if self.try_match(pattern, quantifier, slice) {
+                    println!("Match!");
+                    matches.push(slice);
+                }
+                else {
+                    println!("Not match!");
+                }
             }
         }
 
@@ -225,10 +241,10 @@ where
     Return a vector containing each slice that does not  match the quantified pattern.
      */
     fn  matches_pattern_not(
-        &'a self,
+        &'collection self,
         pattern: &'pattern Self::Pattern,
         quantifier: &Quantifier,
-    ) -> Vec<&'a [T]> {
+    ) -> Vec<&'collection [T]> {
         let mut matches = vec![];
 
         let self_len = Self::calculate_length(self);
@@ -246,17 +262,17 @@ where
 
     // --- Quantification ---
 
-    fn quantify(&'a self, _pattern: &'pattern Self::Pattern) -> Quantifier {
+    fn quantify(&'collection self, _pattern: &'pattern Self::Pattern) -> Quantifier {
         todo!()
     }
 
     // --- Matching Logic ---
 
     fn try_match(
-        &'a self,
+        &'collection self,
         pattern: &'pattern Self::Pattern,
         quantifier: &Quantifier,
-        slice: &'a [T],
+        slice: &'collection [T],
     ) -> bool {
         let slice_len = slice.len();
 
@@ -297,7 +313,13 @@ where
 
                 true
             },
-            Quantifier::ZeroOrOne => true,
+            Quantifier::ZeroOrOne => {
+                if slice_len < 1 {
+                    return true;
+                }
+
+                self.try_match(pattern, &Quantifier::One, slice)
+            },
             _ => false,
         }
     }
