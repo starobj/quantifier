@@ -7,6 +7,25 @@ pub fn build_patterns<'r>(patterns: &'r [Vec<i32>]) -> Vec<Iter<'r, i32>> {
     patterns.iter().map(|x| x.iter()).collect()
 }
 
+pub struct QuantifyMatch<'collection, T>
+where
+    Self: 'collection + Clone + Index<usize, Output = T> + Index<Range<usize>, Output = [T]> + Index<RangeTo<usize>, Output = [T]> + IntoIterator,
+    T: Debug + PartialEq + Sized + 'collection,
+{
+    range: Range<usize>,
+    slice: &'collection [T],
+}
+
+impl<'collection, T> QuantifyMatch<'collection, T>
+where
+    Self: 'collection + Clone + Index<usize, Output = T> + Index<Range<usize>, Output = [T]> + Index<RangeTo<usize>, Output = [T]> + IntoIterator,
+    T: Debug + PartialEq + Sized + 'collection,
+{
+    pub fn new(range: Range<usize>, slice: &'collection [T]) -> QuantifyMatch<'collection, T> {
+        QuantifyMatch { range, slice }
+    }
+}
+
 pub trait Quantify<'collection, 'pattern, T, Item, Pattern>
 where
     Self: 'collection + Clone + Index<usize, Output = T> + Index<Range<usize>, Output = [T]> + Index<RangeTo<usize>, Output = [T]> + IntoIterator,
