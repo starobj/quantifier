@@ -7,30 +7,31 @@ pub fn build_patterns<'r>(patterns: &'r [Vec<i32>]) -> Vec<Iter<'r, i32>> {
     patterns.iter().map(|x| x.iter()).collect()
 }
 
-pub struct QuantifyMatch<'collection, T>
+#[derive(Clone, Debug, PartialEq)]
+pub struct PatternMatch<'collection, T>
 where
-    Self: 'collection + Clone + Index<usize, Output = T> + Index<Range<usize>, Output = [T]> + Index<RangeTo<usize>, Output = [T]> + IntoIterator,
-    T: Debug + PartialEq + Sized + 'collection,
+    Self: 'collection,
+    T: Clone + Debug + PartialEq + Sized + 'collection,
 {
     range: Range<usize>,
     slice: &'collection [T],
 }
 
-impl<'collection, T> QuantifyMatch<'collection, T>
+impl<'collection, T> PatternMatch<'collection, T>
 where
-    Self: 'collection + Clone + Index<usize, Output = T> + Index<Range<usize>, Output = [T]> + Index<RangeTo<usize>, Output = [T]> + IntoIterator,
-    T: Debug + PartialEq + Sized + 'collection,
+    Self: 'collection,
+    T: Clone + Debug + PartialEq + Sized + 'collection,
 {
-    pub fn new(range: Range<usize>, slice: &'collection [T]) -> QuantifyMatch<'collection, T> {
-        QuantifyMatch { range, slice }
+    pub fn new(range: Range<usize>, slice: &'collection [T]) -> PatternMatch<'collection, T> {
+        PatternMatch { range: range.clone(), slice }
     }
 }
 
 pub trait Quantify<'collection, 'pattern, T, Item, Pattern>
 where
     Self: 'collection + Clone + Index<usize, Output = T> + Index<Range<usize>, Output = [T]> + Index<RangeTo<usize>, Output = [T]> + IntoIterator,
-    T: Debug + PartialEq + Sized + 'collection,
-    Item: Debug + PartialEq<&'collection T> + 'pattern,
+    T: Clone + Debug + PartialEq + Sized + 'collection,
+    Item: Clone + Debug + PartialEq<&'collection T> + 'pattern,
 {
     // --- Pattern Management ---
 
@@ -52,8 +53,8 @@ where
         &'collection self,
         pattern: &'pattern Self::Pattern,
         quantifier: &Quantifier,
-    ) -> Option<&'collection [T]> {
-        self.matches_pattern(pattern, quantifier).first().copied()
+    ) -> Option<PatternMatch<'collection, T>> {
+        self.matches_pattern(pattern, quantifier).first().cloned()
     }
 
     fn is_match(&'collection self, pattern: &'pattern Self::Pattern, quantifier: &Quantifier) -> bool {
@@ -64,8 +65,8 @@ where
         &'collection self,
         pattern: &'pattern Self::Pattern,
         quantifier: &Quantifier,
-    ) -> Option<&'collection [T]> {
-        self.matches_pattern(pattern, quantifier).last().copied()
+    ) -> Option<PatternMatch<'collection, T>> {
+        self.matches_pattern(pattern, quantifier).last().cloned()
     }
 
     /**
@@ -75,13 +76,16 @@ where
         &'collection self,
         patterns: &'pattern Vec<Self::Pattern>,
         quantifier: &Quantifier,
-    ) -> Vec<&'collection [T]> {
-        let mut matches = vec![];
+    ) -> Vec<PatternMatch<'collection, T>> {
+        let mut matches: Vec<PatternMatch<'collection, T>> = vec![];
 
         let self_len = Self::calculate_length(self);
 
         // Loop from 0 to the length of self:
         for i in 0..self_len {
+            // Get the range of the next slice.
+            let range = i..self_len;
+
             // Get the next slice to try matching.
             let slice = &self[i..self_len];
 
@@ -102,7 +106,7 @@ where
 
             if is_match {
                 // Add the match.
-                matches.push(slice);
+                matches.push(PatternMatch::new(range.clone(), slice));
             }
         }
 
@@ -116,13 +120,16 @@ where
         &'collection self,
         patterns: &'pattern Vec<Self::Pattern>,
         quantifier: &Quantifier,
-    ) -> Vec<&'collection [T]> {
+    ) -> Vec<PatternMatch<'collection, T>> {
         let mut matches = vec![];
 
         let self_len = Self::calculate_length(self);
 
         // Loop from 0 to the length of self:
         for i in 0..self_len {
+            // Get the range of the next slice.
+            let range = i..self_len;
+
             // Get the next slice to try matching.
             let slice = &self[i..self_len];
 
@@ -131,7 +138,7 @@ where
                 // If the slice matches the pattern:
                 if self.try_match(pattern, quantifier, slice) {
                     // Add the match.
-                    matches.push(slice);
+                    matches.push(PatternMatch::new(range.clone(), slice));
 
                     // A match was found; try matching the next slice.
                     // To do so, break the loop.
@@ -150,13 +157,16 @@ where
         &'collection self,
         patterns: &'pattern Vec<Self::Pattern>,
         quantifier: &Quantifier,
-    ) -> Vec<&'collection [T]> {
+    ) -> Vec<PatternMatch<'collection, T>> {
         let mut matches = vec![];
         // let pattern_len = Self::calculate_pattern_length(pattern);
         let self_len = Self::calculate_length(self);
 
         // Loop from 0 to the length of self:
         for i in 0..self_len {
+            // Get the range of the next slice.
+            let range = i..self_len;
+
             // Get the next slice to try matching.
             let slice = &self[i..self_len];
 
@@ -165,7 +175,7 @@ where
                 // If the slice matches the pattern:
                 if !self.try_match(pattern, quantifier, slice) {
                     // Add the match.
-                    matches.push(slice);
+                    matches.push(PatternMatch::new(range.clone(), slice));
 
                     // A match was found; try matching the next slice.
                     // To do so, break the loop.
@@ -184,15 +194,18 @@ where
         &'collection self,
         patterns: &'pattern Vec<Self::Pattern>,
         quantifier: &Quantifier,
-    ) -> Vec<&'collection [T]> {
+    ) -> Vec<PatternMatch<'collection, T>> {
         let mut matches = vec![];
         // let pattern_len = Self::calculate_pattern_length(pattern);
         let self_len = Self::calculate_length(self);
 
         // Loop from 0 to the length of self:
         for i in 0..self_len {
+            // Get the range of the next slice.
+            let range = i..self_len;
+
             // Get the next slice to try matching.
-            let slice = &self[i..self_len];
+            let slice = &self[range.clone()];
 
             let mut is_match = true;
 
@@ -211,7 +224,7 @@ where
 
             if is_match {
                 // Add the match.
-                matches.push(slice);
+                matches.push(PatternMatch::new(range.clone(), slice));
             }
         }
 
@@ -225,7 +238,7 @@ where
         &'collection self,
         pattern: &'pattern Self::Pattern,
         quantifier: &Quantifier,
-    ) -> Vec<&'collection [T]> {
+    ) -> Vec<PatternMatch<'collection, T>> {
         let mut matches = vec![];
 
         let self_len = Self::calculate_length(self);
@@ -238,14 +251,16 @@ where
 
         for i in 0..=self_len {
             for j in i..=self_len {
-                let slice = if i == 0 { &self[..j] } else { &self[i..j] };
+                let range = i..j;
+
+                let slice = if i == 0 { &self[..j] } else { &self[range.clone()] };
 
                 println!("SLICE: {:?} ({})", i..j, j - i);
                 println!("{:?}", slice);
 
                 if self.try_match(pattern, quantifier, slice) {
                     println!("Match!");
-                    matches.push(slice);
+                    matches.push(PatternMatch::new(range.clone(), slice));
                 }
                 else {
                     println!("Not match!");
@@ -263,16 +278,33 @@ where
         &'collection self,
         pattern: &'pattern Self::Pattern,
         quantifier: &Quantifier,
-    ) -> Vec<&'collection [T]> {
+    ) -> Vec<PatternMatch<'collection, T>> {
         let mut matches = vec![];
 
         let self_len = Self::calculate_length(self);
 
-        for i in 0..self_len {
-            let slice = &self[i..self_len];
+        let mut pc = pattern.clone();
+        println!("Pattern:");
+        for _ in 0..Self::calculate_pattern_length(pattern) {
+            println!("- {:?}", pc.next().unwrap());
+        }
 
-            if !self.try_match(pattern, quantifier, slice) {
-                matches.push(slice);
+        for i in 0..=self_len {
+            for j in i..=self_len {
+                let range = i..j;
+
+                let slice = if i == 0 { &self[..j] } else { &self[range.clone()] };
+
+                println!("SLICE: {:?} ({})", i..j, j - i);
+                println!("{:?}", slice);
+
+                if !self.try_match(pattern, quantifier, slice) {
+                    println!("Match!");
+                    matches.push(PatternMatch::new(range.clone(), slice));
+                }
+                else {
+                    println!("Not match!");
+                }
             }
         }
 

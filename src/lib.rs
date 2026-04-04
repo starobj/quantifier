@@ -125,7 +125,7 @@ mod tests {
 
         let actual = v.matches_all(&patterns, &Quantifier::One);
 
-        let expected: Vec<&[i32]> = vec![&v[..]];
+        let expected = vec![PatternMatch::new(0..4, &v[..])];
 
         assert_eq!(actual, expected);
     }
@@ -138,7 +138,7 @@ mod tests {
 
         let actual = v.matches_all(&patterns, &Quantifier::ExactCount(2));
 
-        let expected: Vec<&[i32]> = vec![&v[..]];
+        let expected = vec![PatternMatch::new(0..4, &v[..])];
 
         assert_eq!(actual, expected);
     }
@@ -150,7 +150,7 @@ mod tests {
 
         let actual = v.matches_pattern(&pattern.iter(), &Quantifier::One);
 
-        let expected: Vec<&[usize]> = vec![&v[..]];
+        let expected = vec![PatternMatch::new(0..4, &v[..])];
 
         assert_eq!(actual, expected);
     }
@@ -162,7 +162,7 @@ mod tests {
 
         let actual = v.matches_pattern(&pattern.iter(), &Quantifier::ExactCount(2));
 
-        let expected: Vec<&[usize]> = vec![&v[..]];
+        let expected = vec![PatternMatch::new(0..4, &v[..])];
 
         assert_eq!(actual, expected);
     }
@@ -172,16 +172,33 @@ mod tests {
         let v: Vec<usize> = vec![1, 2, 1, 2];
         let empty = &v[..0];
         let one_two = &v[0..=1];
+        let one = &v[0..1];
         let pattern_valid_a: Vec<usize> = vec![1, 2];
         let pattern_valid_b: Vec<usize> = vec![1];
 
         let mut actual = v.matches_pattern(&pattern_valid_a.iter(), &Quantifier::ZeroOrOne);
-        let mut expected: Vec<&[usize]> = vec![empty, one_two, empty, empty, one_two, empty, empty];
+        let mut expected = vec![
+            PatternMatch::new(0..0, empty),
+            PatternMatch::new(0..2, one_two),
+            PatternMatch::new(1..1, empty),
+            PatternMatch::new(2..2, empty),
+            PatternMatch::new(2..4, one_two),
+            PatternMatch::new(3..3, empty),
+            PatternMatch::new(4..4, empty),
+        ];
 
         assert_eq!(actual, expected);
 
         actual = v.matches_pattern(&pattern_valid_b.iter(), &Quantifier::ZeroOrOne);
-        expected = vec![empty, one_two, empty, empty];
+        expected = vec![
+            PatternMatch::new(0..0, empty),
+            PatternMatch::new(0..1, one),
+            PatternMatch::new(1..1, empty),
+            PatternMatch::new(2..2, empty),
+            PatternMatch::new(2..3, one),
+            PatternMatch::new(3..3, empty),
+            PatternMatch::new(4..4, empty),
+        ];
 
         assert_eq!(actual, expected);
     }
