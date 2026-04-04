@@ -114,9 +114,11 @@ impl Quantifier {
                 if range.start == usize::MIN && range.end == usize::MAX {
                     return String::from("*");
                 }
+
                 if range.start == usize::MIN {
                     return format!("{{,{}}}", range.end);
                 }
+
                 if range.end == usize::MAX {
                     return format!("{{{},}}", range.start);
                 }

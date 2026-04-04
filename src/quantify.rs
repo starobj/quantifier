@@ -2,16 +2,6 @@ use crate::quantifier::*;
 
 use std::{ops::{Index, Range}, slice::Iter};
 
-// pub struct QuantifiedClass<'a, 'pattern, T, Item, Pattern, Q>
-// where
-//     T: PartialEq + Sized + 'a,
-//     Item: PartialEq<&'a T> + 'pattern,
-//     Q: Quantify<'a, 'pattern, T, Item, Pattern>,
-// {
-//     quantifier: Quantifier,
-//     patterns: Vec<Q>,
-// }
-
 pub fn build_patterns<'r>(patterns: &'r [Vec<i32>]) -> Vec<Iter<'r, i32>> {
     patterns.iter().map(|x| x.iter()).collect()
 }
@@ -67,7 +57,7 @@ where
         quantifier: &Quantifier,
     ) -> Vec<&'a [T]> {
         let mut matches = vec![];
-        // let pattern_len = Self::calculate_pattern_length(pattern);
+
         let self_len = Self::calculate_length(self);
 
         // Loop from 0 to the length of self:
@@ -108,7 +98,7 @@ where
         quantifier: &Quantifier,
     ) -> Vec<&'a [T]> {
         let mut matches = vec![];
-        // let pattern_len = Self::calculate_pattern_length(pattern);
+
         let self_len = Self::calculate_length(self);
 
         // Loop from 0 to the length of self:
@@ -269,6 +259,7 @@ where
         slice: &'a [T],
     ) -> bool {
         let slice_len = slice.len();
+
         match quantifier {
             Quantifier::One => {
                 if Self::calculate_pattern_length(pattern) != slice.len() {
@@ -286,6 +277,7 @@ where
                         return false;
                     }
                 }
+
                 true
             },
             Quantifier::ExactCount(n) => {
