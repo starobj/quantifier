@@ -1,7 +1,9 @@
+pub mod pattern;
 pub mod quantify;
 pub mod quantify_vec;
 pub mod quantifier;
 
+pub use pattern::*;
 pub use quantify::*;
 pub use quantifier::*;
 
