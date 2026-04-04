@@ -1,7 +1,7 @@
 use crate::pattern::*;
 use crate::quantifier::*;
 
-use std::{ops::{Index, Range, RangeTo}, slice::Iter};
+use std::{ops::{Index, Range, RangeTo}};
 use std::fmt::Debug;
 
 pub trait Quantify<'collection, 'pattern, T, Item, Pattern>
