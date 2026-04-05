@@ -32,32 +32,132 @@ where
     }
 }
 
-pub struct PatternNode<'pattern, T>
+#[derive(Clone, Debug, PartialEq)]
+pub struct PatternTerminal<'pattern, T>
 where
-    Self: 'pattern + Clone + Iterator<Item = T>,
     T: Clone + Debug + PartialEq<&'pattern T> + 'pattern,
 {
-    children: Option<Vec<Rc<PatternNode<'pattern, T>>>>,
-    is_negative: bool,
-    is_non_capturing: bool,
-    quantifier: Quantifier,
-    value: Option<T>,
-    phantom: PhantomData<&'pattern T>,
+    value: T,
+    _phantom: PhantomData<&'pattern T>
 }
 
-impl<'pattern, T> PatternNode<'pattern, T>
+impl<'pattern, T> PatternTerminal<'pattern, T>
 where
-    Self: 'pattern + Clone + Iterator<Item = T>,
+    Self: 'pattern,
     T: Clone + Debug + PartialEq<&'pattern T> + 'pattern,
 {
-    pub fn new(value: Option<T>, children: Option<Vec<Rc<PatternNode<'pattern, T>>>>, quantifier: Quantifier, is_negative: bool, is_non_capturing: bool) -> PatternNode<'pattern, T> {
-        PatternNode {
+    pub fn new(value: T) -> PatternTerminal<'pattern, T> {
+        PatternTerminal { value, _phantom: PhantomData {} }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct PatternGroup<'pattern, T>
+where
+    Self: 'pattern,
+    T: Clone + Debug + PartialEq<&'pattern T> + 'pattern,
+{
+    children: Vec<Rc<PatternSymbol<'pattern, T>>>,
+    _phantom: PhantomData<&'pattern T>,
+}
+
+impl<'pattern, T> PatternGroup<'pattern, T>
+where
+    Self: 'pattern,
+    T: Clone + Debug + PartialEq<&'pattern T> + 'pattern,
+{
+    pub fn new(children: Vec<Rc<PatternSymbol<'pattern, T>>>) -> PatternGroup<'pattern, T> {
+        PatternGroup {
             children,
-            is_negative,
-            is_non_capturing,
-            quantifier,
-            value,
-            phantom: PhantomData {},
+            _phantom: PhantomData {},
         }
     }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum PatternSymbol<'pattern, T>
+where
+    Self: 'pattern,
+    T: Clone + Debug + PartialEq<&'pattern T> + 'pattern,
+{
+    Terminal(Rc<PatternTerminal<'pattern, T>>),
+    Group(Rc<PatternGroup<'pattern, T>>),
+}
+
+pub struct Pattern<'pattern, T>
+where
+    Self: 'pattern,
+    T: Clone + Debug + PartialEq<&'pattern T> + 'pattern,
+{
+    /**
+    The symbol to match.
+     */
+    symbol: PatternSymbol<'pattern, T>,
+
+    /**
+    The quantifier to used to match the symbol.
+     */
+    quantifier: Quantifier,
+
+    /**
+    Whether or not the pattern is a negative search.
+    This can be thought of as similar to the logical not operator (`!` in Rust, `^` in Regex).
+
+    If `false`, the pattern will be matched normally.
+    If `true`, then the pattern will be considered as matched only if the symbol isn't matched.
+     */
+    is_negative: bool,
+
+    /**
+    Whether or not the pattern should capture matches (i.e. add matches to the result).
+    This can be thought of as similar to capturing and non-capturing groups in Regex.
+
+    If `false`, the pattern will not capture matches.
+    If `true`, then the pattern will capture matches.
+     */
+    is_capturing: bool,
+}
+
+impl<'pattern, T> Pattern<'pattern, T>
+where
+    Self: 'pattern,
+    T: Clone + Debug + PartialEq<&'pattern T> + 'pattern,
+{
+    pub fn new(symbol: PatternSymbol<'pattern, T>, quantifier: Quantifier, is_negative: bool, is_capturing: bool) -> Rc<Pattern<'pattern, T>> {
+        Rc::new(
+            Pattern {
+                symbol,
+                quantifier,
+                is_negative,
+                is_capturing,
+            }
+        )
+    }
+
+    pub fn new_group(children: Vec<Rc<PatternSymbol<'pattern, T>>>, quantifier: Quantifier, is_negative: bool, is_capturing: bool) -> Rc<Pattern<'pattern, T>> {
+        Self::new(
+            PatternSymbol::Group(
+                Rc::new(
+                    PatternGroup::new(children)
+                )
+            ),
+            quantifier,
+            is_negative,
+            is_capturing
+        )
+    }
+
+    pub fn new_terminal(value: T, quantifier: Quantifier, is_negative: bool, is_capturing: bool) -> Rc<Pattern<'pattern, T>> {
+        Self::new(
+            PatternSymbol::Terminal(
+                Rc::new(
+                    PatternTerminal::new(value)
+                )
+            ),
+            quantifier,
+            is_negative,
+            is_capturing
+        )
+    }
+
 }
