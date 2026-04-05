@@ -1,44 +1,24 @@
 use crate::pattern::*;
 use crate::quantifier::*;
 
-use std::rc::Rc;
-use std::marker::PhantomData;
-use std::{ops::{Index, Range, RangeTo}};
-use std::fmt::Debug;
+use std::{
+    fmt::Debug,
+    ops::{
+        Index,
+        Range,
+        RangeTo
+    },
+};
 
-pub struct PatternNode<'pattern, T>
-where
-    Self: 'pattern + Clone + Iterator<Item = T>,
-    T: Clone + Debug + PartialEq<&'pattern T> + 'pattern,
-{
-    value: Option<T>,
-    children: Option<Rc<PatternNode<'pattern, T>>>,
-    phantom: PhantomData<&'pattern T>,
-}
-
-impl<'pattern, T> PatternNode<'pattern, T>
-where
-    Self: 'pattern + Clone + Iterator<Item = T>,
-    T: Clone + Debug + PartialEq<&'pattern T> + 'pattern,
-{
-    pub fn new(value: Option<T>, children: Option<Rc<PatternNode<'pattern, T>>>) -> PatternNode<'pattern, T> {
-        PatternNode {
-            value,
-            children,
-            phantom: PhantomData {}
-        }
-    }
-}
-
-pub trait Quantify<'collection, 'pattern, T, Item, Pattern>
+pub trait Quantify<'collection, 'pattern, T, PatternT, Pattern>
 where
     Self: 'collection + Clone + Index<usize, Output = T> + Index<Range<usize>, Output = [T]> + Index<RangeTo<usize>, Output = [T]> + IntoIterator,
     T: Clone + Debug + PartialEq + Sized + 'collection,
-    Item: Clone + Debug + PartialEq<&'collection T> + 'pattern,
+    PatternT: Clone + Debug + PartialEq<&'collection T> + 'pattern,
 {
     // --- Pattern Management ---
 
-    type Pattern: 'pattern + Clone + Iterator<Item = Item>;
+    type Pattern: 'pattern + Clone + Iterator<Item = PatternT>;
 
     // --- Static Methods ---
 
