@@ -50,6 +50,63 @@ where
         pattern.clone().count()
     }
 
+    // --- Matching Logic ---
+
+    fn try_match(
+        pattern: &'pattern Self::Pattern,
+        quantifier: &Quantifier,
+        slice: &'collection [T],
+    ) -> bool {
+        let slice_len = slice.len();
+
+        match quantifier {
+            Quantifier::One => {
+                if Self::calculate_pattern_length(pattern) != slice.len() {
+                    return false;
+                }
+
+                let mut pattern_clone = pattern.clone();
+
+                for item in slice {
+                    if let Some(pattern_item) = pattern_clone.next() {
+                        if pattern_item != item {
+                            return false;
+                        }
+                    } else {
+                        return false;
+                    }
+                }
+
+                true
+            },
+            Quantifier::ExactCount(n) => {
+                let pattern_len = Self::calculate_pattern_length(pattern);
+
+                if slice_len % pattern_len != 0 || slice_len / pattern_len != *n {
+                    return false;
+                }
+
+                for i in 0..*n {
+                    let sub_slice = &slice[i * pattern_len..(i + 1) * pattern_len];
+
+                    if !Self::try_match(pattern, &Quantifier::One, sub_slice) {
+                        return false;
+                    }
+                }
+
+                true
+            },
+            Quantifier::ZeroOrOne => {
+                if slice_len < 1 {
+                    return true;
+                }
+
+                Self::try_match(pattern, &Quantifier::One, slice)
+            },
+            _ => false,
+        }
+    }
+
     // --- Matching ---
 
     fn first_match(
@@ -97,7 +154,7 @@ where
             // For each pattern:
             for pattern in patterns {
                 // If the slice does not match the pattern:
-                if !self.try_match(pattern, quantifier, slice) {
+                if !Self::try_match(pattern, quantifier, slice) {
                     // Remove the match.
                     is_match = false;
 
@@ -139,7 +196,7 @@ where
             // For each pattern:
             for pattern in patterns {
                 // If the slice matches the pattern:
-                if self.try_match(pattern, quantifier, slice) {
+                if Self::try_match(pattern, quantifier, slice) {
                     // Add the match.
                     matches.push(PatternMatch::new(range.clone(), slice));
 
@@ -176,7 +233,7 @@ where
             // For each pattern:
             for pattern in patterns {
                 // If the slice matches the pattern:
-                if !self.try_match(pattern, quantifier, slice) {
+                if !Self::try_match(pattern, quantifier, slice) {
                     // Add the match.
                     matches.push(PatternMatch::new(range.clone(), slice));
 
@@ -215,7 +272,7 @@ where
             // For each pattern:
             for pattern in patterns {
                 // If the slice matches the pattern:
-                if self.try_match(pattern, quantifier, slice) {
+                if Self::try_match(pattern, quantifier, slice) {
                     // Remove the match.
                     is_match = false;
 
@@ -261,7 +318,7 @@ where
                 println!("SLICE: {:?} ({})", i..j, j - i);
                 println!("{:?}", slice);
 
-                if self.try_match(pattern, quantifier, slice) {
+                if Self::try_match(pattern, quantifier, slice) {
                     println!("Match!");
                     matches.push(PatternMatch::new(range.clone(), slice));
                 }
@@ -301,7 +358,7 @@ where
                 println!("SLICE: {:?} ({})", i..j, j - i);
                 println!("{:?}", slice);
 
-                if !self.try_match(pattern, quantifier, slice) {
+                if !Self::try_match(pattern, quantifier, slice) {
                     println!("Match!");
                     matches.push(PatternMatch::new(range.clone(), slice));
                 }
@@ -318,63 +375,5 @@ where
 
     fn quantify(&'collection self, _pattern: &'pattern Self::Pattern) -> Quantifier {
         todo!()
-    }
-
-    // --- Matching Logic ---
-
-    fn try_match(
-        &'collection self,
-        pattern: &'pattern Self::Pattern,
-        quantifier: &Quantifier,
-        slice: &'collection [T],
-    ) -> bool {
-        let slice_len = slice.len();
-
-        match quantifier {
-            Quantifier::One => {
-                if Self::calculate_pattern_length(pattern) != slice.len() {
-                    return false;
-                }
-
-                let mut pattern_clone = pattern.clone();
-
-                for item in slice {
-                    if let Some(pattern_item) = pattern_clone.next() {
-                        if pattern_item != item {
-                            return false;
-                        }
-                    } else {
-                        return false;
-                    }
-                }
-
-                true
-            },
-            Quantifier::ExactCount(n) => {
-                let pattern_len = Self::calculate_pattern_length(pattern);
-
-                if slice_len % pattern_len != 0 || slice_len / pattern_len != *n {
-                    return false;
-                }
-
-                for i in 0..*n {
-                    let sub_slice = &slice[i * pattern_len..(i + 1) * pattern_len];
-
-                    if !self.try_match(pattern, &Quantifier::One, sub_slice) {
-                        return false;
-                    }
-                }
-
-                true
-            },
-            Quantifier::ZeroOrOne => {
-                if slice_len < 1 {
-                    return true;
-                }
-
-                self.try_match(pattern, &Quantifier::One, slice)
-            },
-            _ => false,
-        }
     }
 }
