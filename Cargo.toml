@@ -6,3 +6,4 @@ license = "MIT"
 description = "Pattern matching of generic types, similar to regex quantifiers"
 
 [dependencies]
+tracing-rc = "0.2.0"

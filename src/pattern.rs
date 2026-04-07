@@ -1,10 +1,7 @@
 use std::{
-    fmt::Debug,
-    marker::PhantomData,
-    ops::Range,
-    rc::Rc,
-    slice::Iter,
+    fmt::Debug, ops::{Index, Range, RangeTo}, rc::Rc, slice::Iter
 };
+use tracing_rc::rc::{Gc, GcVisitor, Trace};
 
 use crate::quantifier::*;
 
@@ -32,67 +29,363 @@ where
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct PatternTerminal<'pattern, T>
+pub type DynPatternTerminal<T> = dyn Fn(&T) -> bool;
+
+#[derive(Clone)]
+pub enum PatternTerminal<T>
 where
-    T: Clone + Debug + PartialEq<&'pattern T> + 'pattern,
+    T: 'static + Clone + Debug + PartialEq<T>,
 {
-    value: T,
-    _phantom: PhantomData<&'pattern T>
+    /**
+    A static terminal symbol is a symbol that:
+    - does not change
+    - is limited to an exact value
+    - is of type `T`
+    - is required to implement: `Clone + Debug + PartialEq<T>`
+     */
+    Static(T),
+
+    /**
+    A dynamic terminal symbol is a symbol that:
+    - represents a ran
+    - is limited to an exact value
+    - is of type `T`
+    - is required to implement: `Clone + Debug + PartialEq<T>`
+     */
+    Dyn(&'static DynPatternTerminal<T>),
 }
 
-impl<'pattern, T> PatternTerminal<'pattern, T>
+impl<T> PartialEq for PatternTerminal<T>
 where
-    Self: 'pattern,
-    T: Clone + Debug + PartialEq<&'pattern T> + 'pattern,
+    T: 'static + Clone + Debug + PartialEq<T>,
 {
-    pub fn new(value: T) -> PatternTerminal<'pattern, T> {
-        PatternTerminal { value, _phantom: PhantomData {} }
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Static(lhs), Self::Static(rhs)) => lhs == rhs,
+            (Self::Dyn(lhs), Self::Dyn(rhs)) => {
+                // Compare the two function's pointers to determine equality.
+                Rc::ptr_eq(
+                    &Rc::new(lhs),
+                    &Rc::new(rhs)
+                )
+            },
+            _ => false,
+        }
+    }
+}
+
+impl<T> Trace for PatternTerminal<T>
+where
+    T: 'static + Clone + Debug + PartialEq<T>,
+{
+    fn visit_children(&self, _visitor: &mut GcVisitor) {}
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum PatternGroupType {
+    All,
+    Any,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct PatternGroup<T>
+where
+    T: 'static + Clone + Debug + PartialEq<T>,
+{
+    group_type: PatternGroupType,
+    children: Vec<Gc<Pattern<T>>>,
+}
+
+impl<T> PatternGroup<T>
+where
+    T: 'static + Clone + Debug + PartialEq<T>,
+{
+    pub fn new(group_type: PatternGroupType, children: Vec<Gc<Pattern<T>>>) -> PatternGroup<T> {
+        PatternGroup {
+            group_type,
+            children,
+        }
+    }
+
+    pub fn get_child_count(&self) -> usize {
+        self.children.len()
+    }
+
+    pub fn get_children(&self) -> Iter<'_, Gc<Pattern<T>>> {
+        self.children.iter()
+    }
+
+    pub fn get_children_iter(&self) -> std::vec::IntoIter<Gc<Pattern<T>>> {
+        self.children.clone().into_iter()
+    }
+
+    pub fn get_deep_count(&self) -> usize {
+        let children = self.get_children();
+
+        let mut child_count = 0;
+
+        for child in children {
+            match &child.borrow().symbol {
+                PatternSymbol::Group(group) => {
+                    child_count += group.borrow().get_child_count();
+                },
+                PatternSymbol::Terminal(_terminal) => {
+                    child_count += 1;
+                },
+            }
+        }
+
+        return child_count;
     }
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct PatternGroup<'pattern, T>
+pub struct PatternGroupIterator<T>
 where
-    Self: 'pattern,
-    T: Clone + Debug + PartialEq<&'pattern T> + 'pattern,
+    T: 'static + Clone + Debug + PartialEq<T>,
 {
-    children: Vec<Rc<PatternSymbol<'pattern, T>>>,
-    _phantom: PhantomData<&'pattern T>,
+    index: usize,
+    group: Gc<PatternGroup<T>>,
+    stack: Vec<(usize, Gc<PatternGroup<T>>)>,
 }
 
-impl<'pattern, T> PatternGroup<'pattern, T>
+impl<T> PatternGroupIterator<T>
 where
-    Self: 'pattern,
-    T: Clone + Debug + PartialEq<&'pattern T> + 'pattern,
+    T: 'static + Clone + Debug + PartialEq<T>,
 {
-    pub fn new(children: Vec<Rc<PatternSymbol<'pattern, T>>>) -> PatternGroup<'pattern, T> {
-        PatternGroup {
-            children,
-            _phantom: PhantomData {},
+    pub fn is_empty(&self) -> bool {
+        self.stack.len() < 1
+    }
+    pub fn peek(&mut self) -> Option<Gc<PatternGroup<T>>> {
+        if self.is_empty() {
+            return None;
+        }
+
+        let (_index, group) = self.stack.last().unwrap();
+
+        return Some(group.clone());
+    }
+
+    pub fn pop(&mut self) -> Option<Gc<PatternGroup<T>>> {
+        if self.is_empty() {
+            return None;
+        }
+
+        let (index, group) = self.stack.pop().unwrap();
+
+        self.index = index;
+        self.group = group.clone();
+
+        return Some(group);
+    }
+
+    pub fn push(&mut self, group: &Gc<PatternGroup<T>>) {
+        self.stack.push((self.index, self.group.clone()));
+
+        self.index = 0;
+        self.group = group.clone();
+    }
+
+    pub fn seek(&mut self, index: usize) {
+        self.index = index;
+    }
+
+    pub fn seek_relative(&mut self, offset: usize) {
+        self.index += offset;
+    }
+}
+
+impl<T> Iterator for PatternGroupIterator<T>
+where
+    T: 'static + Clone + Debug + PartialEq<T>,
+{
+    type Item = (Gc<Pattern<T>>, Gc<PatternTerminal<T>>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let group = self.group.clone();
+
+        let group_ref = group.borrow();
+
+        // If the stack is empty:
+        if self.is_empty() {
+            if self.index >= group_ref.get_child_count() {
+                self.seek(usize::MAX);
+
+                return None;
+            }
+
+            let pattern = &group_ref.children[self.index];
+
+            let pattern_ref = pattern.borrow();
+
+            match &pattern_ref.symbol {
+                PatternSymbol::Group(subgroup) => {
+                    self.push(subgroup);
+
+                    return self.next();
+                },
+                PatternSymbol::Terminal(terminal) => {
+                    self.seek_relative(1);
+
+                    return Some((pattern.clone(), terminal.clone()));
+                },
+            }
+        }
+        // Otherwise, if the stack is not empty:
+        else {
+            if self.index >= group_ref.get_child_count() {
+                self.pop();
+
+                return self.next();
+            }
+
+            let pattern = group_ref.children[self.index].clone();
+
+            match &pattern.borrow().symbol {
+                PatternSymbol::Group(group) => {
+                    self.push(group);
+
+                    return self.next();
+                },
+                PatternSymbol::Terminal(terminal) => {
+                    return Some((pattern.clone(), terminal.clone()));
+                }
+            }
+        }
+    }
+}
+
+impl<T> IntoIterator for PatternGroup<T>
+where
+    T: 'static + Clone + Debug + PartialEq<T>,
+{
+    type Item = (Gc<Pattern<T>>, Gc<PatternTerminal<T>>);
+
+    type IntoIter = PatternGroupIterator<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        PatternGroupIterator {
+            index: 0,
+            group: Gc::new(self),
+            stack: vec![],
         }
     }
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum PatternSymbol<'pattern, T>
+pub struct PatternIterator<T>
 where
-    Self: 'pattern,
-    T: Clone + Debug + PartialEq<&'pattern T> + 'pattern,
+    T: 'static + Clone + Debug + PartialEq<T>,
 {
-    Terminal(Rc<PatternTerminal<'pattern, T>>),
-    Group(Rc<PatternGroup<'pattern, T>>),
+    pattern: Gc<Pattern<T>>,
+    end_of_stream: bool,
+    group_iter: Option<PatternGroupIterator<T>>,
 }
 
-pub struct Pattern<'pattern, T>
+impl<T> Iterator for PatternIterator<T>
 where
-    Self: 'pattern,
-    T: Clone + Debug + PartialEq<&'pattern T> + 'pattern,
+    T: 'static + Clone + Debug + PartialEq<T>,
+{
+    type Item = (Gc<Pattern<T>>, Gc<PatternTerminal<T>>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.end_of_stream {
+            return None;
+        }
+
+        let pattern = &self.pattern.clone();
+
+        let pattern_ref = pattern.borrow();
+
+        if let Some(group_iter) = self.group_iter.as_mut() {
+            let child = group_iter.next();
+
+            if child.is_none() {
+                self.end_of_stream = true;
+
+                return None;
+            }
+
+            return Some(child.unwrap());
+        }
+
+        match &pattern_ref.symbol {
+            PatternSymbol::Group(group) => {
+                self.group_iter = Some(group.borrow().clone().into_iter());
+
+                return self.next();
+            },
+            PatternSymbol::Terminal(terminal) => {
+                self.end_of_stream = true;
+
+                return Some((self.pattern.clone(), terminal.clone()));
+            },
+        }
+    }
+}
+
+impl<T> IntoIterator for Pattern<T>
+where
+    T: 'static + Clone + Debug + PartialEq<T>,
+{
+    type Item = (Gc<Pattern<T>>, Gc<PatternTerminal<T>>);
+
+    type IntoIter = PatternIterator<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        PatternIterator {
+            pattern: Gc::new(self),
+            end_of_stream: false,
+            group_iter: None,
+        }
+    }
+}
+
+impl<T> Trace for PatternGroup<T>
+where
+    T: 'static + Clone + Debug + PartialEq<T>,
+{
+    fn visit_children(&self, visitor: &mut GcVisitor) {
+        for child in &self.children[..] {
+            child.visit_children(visitor);
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum PatternSymbol<T>
+where
+    T: 'static + Clone + Debug + PartialEq<T>,
+{
+    Terminal(Gc<PatternTerminal<T>>),
+    Group(Gc<PatternGroup<T>>),
+}
+
+impl<T> Trace for PatternSymbol<T>
+where
+    T: 'static + Clone + Debug + PartialEq<T>,
+{
+    fn visit_children(&self, visitor: &mut GcVisitor) {
+        match self {
+            Self::Group(group) => {
+                group.visit_children(visitor);
+            },
+            Self::Terminal(terminal) => {
+                terminal.visit_children(visitor);
+            },
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Pattern<T>
+where
+    T: 'static + Clone + Debug + PartialEq<T>,
 {
     /**
     The symbol to match.
      */
-    symbol: PatternSymbol<'pattern, T>,
+    symbol: PatternSymbol<T>,
 
     /**
     The quantifier to used to match the symbol.
@@ -118,13 +411,30 @@ where
     is_capturing: bool,
 }
 
-impl<'pattern, T> Pattern<'pattern, T>
+trait MatchPattern<'collection, T>:
+    'collection
+    + Clone
+    + Index<usize, Output = T>
+    + Index<Range<usize>, Output = [T]>
+    + Index<RangeTo<usize>, Output = [T]>
+    + IntoIterator
 where
-    Self: 'pattern,
-    T: Clone + Debug + PartialEq<&'pattern T> + 'pattern,
+    T: 'collection + Clone + Debug + PartialEq + Sized,
+{}
+
+impl<T> Pattern<T>
+where
+    T: 'static + Clone + Debug + PartialEq<T>,
 {
-    pub fn new(symbol: PatternSymbol<'pattern, T>, quantifier: Quantifier, is_negative: bool, is_capturing: bool) -> Rc<Pattern<'pattern, T>> {
-        Rc::new(
+    fn collection_len<'collection, Collection>(collection: &Collection) -> usize
+    where
+        Collection: MatchPattern<'collection, T>
+    {
+        collection.clone().into_iter().count()
+    }
+
+    pub fn new(symbol: PatternSymbol<T>, quantifier: Quantifier, is_negative: bool, is_capturing: bool) -> Gc<Pattern<T>> {
+        Gc::new(
             Pattern {
                 symbol,
                 quantifier,
@@ -134,11 +444,11 @@ where
         )
     }
 
-    pub fn new_group(children: Vec<Rc<PatternSymbol<'pattern, T>>>, quantifier: Quantifier, is_negative: bool, is_capturing: bool) -> Rc<Pattern<'pattern, T>> {
+    pub fn new_group(group_type: PatternGroupType, children: Vec<Gc<Pattern<T>>>, quantifier: Quantifier, is_negative: bool, is_capturing: bool) -> Gc<Pattern<T>> {
         Self::new(
             PatternSymbol::Group(
-                Rc::new(
-                    PatternGroup::new(children)
+                Gc::new(
+                    PatternGroup::new(group_type, children)
                 )
             ),
             quantifier,
@@ -147,11 +457,11 @@ where
         )
     }
 
-    pub fn new_terminal(value: T, quantifier: Quantifier, is_negative: bool, is_capturing: bool) -> Rc<Pattern<'pattern, T>> {
+    pub fn new_literal(value: T, quantifier: Quantifier, is_negative: bool, is_capturing: bool) -> Gc<Pattern<T>> {
         Self::new(
             PatternSymbol::Terminal(
-                Rc::new(
-                    PatternTerminal::new(value)
+                Gc::new(
+                    PatternTerminal::Static(value)
                 )
             ),
             quantifier,
@@ -160,4 +470,188 @@ where
         )
     }
 
+    pub fn new_dynamic(value: T, quantifier: Quantifier, is_negative: bool, is_capturing: bool) -> Gc<Pattern<T>> {
+        Self::new(
+            PatternSymbol::Terminal(
+                Gc::new(
+                    PatternTerminal::Static(value)
+                )
+            ),
+            quantifier,
+            is_negative,
+            is_capturing
+        )
+    }
+
+    /**
+    Return a vector containing each slice that matches the quantified pattern.
+     */
+    fn  matches<'collection, Collection>(
+        &self,
+        collection: &'collection Collection,
+    ) -> Vec<PatternMatch<'collection, T>>
+    where
+        Collection: MatchPattern<'collection, T>
+    {
+        let mut matches: Vec<PatternMatch<'collection, T>> = vec![];
+
+        let collection_length = Self::collection_len(collection);
+
+        for i in 0..=collection_length {
+            for j in i..=collection_length {
+                let range = i..j;
+
+                let slice = if i == 0 { &collection[..j] } else { &collection[range.clone()] };
+
+                println!("SLICE: {:?} ({})", i..j, j - i);
+                println!("{:?}", slice);
+
+                if self.is_match(slice) {
+                    println!("Match!");
+                    matches.push(PatternMatch::new(range.clone(), slice));
+                }
+                else {
+                    println!("Not match!");
+                }
+            }
+        }
+
+        matches
+    }
+
+    fn is_match(
+        &self,
+        slice: &[T],
+    ) -> bool {
+        let slice_len = slice.len();
+
+        match &self.symbol {
+            PatternSymbol::Group(group) => {
+                // let mut group_ref = group.borrow();
+                // let mut children = group_ref.get_children();
+
+                let mut children = group.borrow().get_children_iter();
+
+                match &self.quantifier {
+                    Quantifier::One => {
+                        for item in slice {
+                            if let Some(pattern) = children.next() {
+                                let pattern_ref = pattern.borrow();
+
+                                if self.is_negative {
+                                    if pattern_ref.is_match(&vec![item.clone()][..]) {
+                                        return false;
+                                    }
+                                }
+                                else {
+                                    if !pattern_ref.is_match(&vec![item.clone()][..]) {
+                                        return false;
+                                    }
+                                }
+                            }
+                            else {
+                                return false;
+                            }
+                        }
+
+                        return true;
+                    },
+                    Quantifier::ExactCount(n) => {
+                        todo!()
+                    },
+                    Quantifier::Range(range) => {
+                        todo!()
+                    },
+                    Quantifier::OneOrMore
+                    | Quantifier::ZeroOrMore
+                    | Quantifier::ZeroOrOne => {
+                        todo!()
+                    },
+                }
+            },
+            PatternSymbol::Terminal(terminal) => {
+                match &self.quantifier {
+                    Quantifier::One => {
+                        if slice.len() < 1 || slice.len() > 1 {
+                            return false;
+                        }
+
+                        let mut terminal_ref = terminal.borrow();
+
+                        let actual = &slice[0];
+
+                        match terminal_ref.clone() {
+                            PatternTerminal::Dyn(dyn_pattern_terminal) => {
+                                if self.is_negative {
+                                    return !dyn_pattern_terminal(actual);
+                                }
+                                else {
+                                    return dyn_pattern_terminal(actual);
+                                }
+                            },
+                            PatternTerminal::Static(expected) => {
+                                if self.is_negative {
+                                    return *actual != expected;
+                                }
+                                else {
+                                    return *actual == expected;
+                                }
+                            },
+                        }
+                    },
+
+                    Quantifier::ExactCount(n) => {
+                        if slice.len() < 1 || slice.len() > *n {
+                            return false;
+                        }
+
+                        let mut subpattern = self.clone();
+
+                        subpattern.quantifier = Quantifier::One;
+
+                        let subslice_length = slice_len / n;
+
+                        for i in 0..*n {
+                            let subslice_start = i * subslice_length;
+                            let subslice_end = subslice_start + subslice_length;
+                            let subslice = &slice[subslice_start..subslice_end];
+
+                            if self.is_negative {
+                                if subpattern.is_match(subslice) {
+                                    return false;
+                                }
+                            }
+                            else {
+                                if !subpattern.is_match(subslice) {
+                                    return false;
+                                }
+                            }
+                        }
+
+                        return true;
+                    },
+                    Quantifier::ZeroOrOne => todo!(),
+                    Quantifier::ZeroOrMore => todo!(),
+                    Quantifier::OneOrMore => todo!(),
+                    Quantifier::Range(range) => todo!(),
+                }
+            },
+        }
+    }
+}
+
+impl<T> Trace for Pattern<T>
+where
+    T: Clone + Debug + PartialEq + Sized,
+{
+    fn visit_children(&self, visitor: &mut GcVisitor) {
+        match self.symbol.clone() {
+            PatternSymbol::Group(group) => {
+                group.visit_children(visitor);
+            },
+            PatternSymbol::Terminal(terminal) => {
+                terminal.visit_children(visitor);
+            },
+        }
+    }
 }
