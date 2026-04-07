@@ -556,10 +556,10 @@ where
 
                         return true;
                     },
-                    Quantifier::ExactCount(n) => {
+                    Quantifier::ExactCount(_n) => {
                         todo!()
                     },
-                    Quantifier::Range(range) => {
+                    Quantifier::Range(_range) => {
                         todo!()
                     },
                     Quantifier::OneOrMore
@@ -576,7 +576,7 @@ where
                             return false;
                         }
 
-                        let mut terminal_ref = terminal.borrow();
+                        let terminal_ref = terminal.borrow();
 
                         let actual = &slice[0];
 
@@ -633,7 +633,7 @@ where
                     Quantifier::ZeroOrOne => todo!(),
                     Quantifier::ZeroOrMore => todo!(),
                     Quantifier::OneOrMore => todo!(),
-                    Quantifier::Range(range) => todo!(),
+                    Quantifier::Range(_range) => todo!(),
                 }
             },
         }
